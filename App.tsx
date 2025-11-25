@@ -1,7 +1,13 @@
 import React from 'react';
-import { AppRoot } from './src/AppRoot';
+import { NavigationContainer } from '@react-navigation/native';
+import 'react-native-gesture-handler';
+import { AppNavigator } from './src/navigation/AppNavigator';
 
 export default function App() {
-  return <AppRoot />;
+  return (
+    <NavigationContainer>
+      <AppNavigator />
+    </NavigationContainer>
+  );
 }
 
