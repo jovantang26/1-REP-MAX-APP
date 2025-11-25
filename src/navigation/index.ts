@@ -1,2 +1,5 @@
-// Placeholder for navigation exports
+/**
+ * Navigation exports
+ */
+export { AppNavigator } from './AppNavigator';
 

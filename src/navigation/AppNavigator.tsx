@@ -1,38 +1,31 @@
 import React from 'react';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { HomeScreen } from '../screens/HomeScreen';
-import { LogBenchScreen } from '../screens/LogBenchScreen';
-import { HistoryScreen } from '../screens/HistoryScreen';
-import { ProfileScreen } from '../screens/ProfileScreen';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  OnboardingScreen,
+  DashboardScreen,
+  LogBenchScreen,
+  HistoryScreen,
+  SettingsScreen,
+} from '../screens';
 
-export type RootStackParamList = {
-  Home: undefined;
-  LogBench: undefined;
-  History: undefined;
-  Profile: undefined;
-};
-
-const Stack = createNativeStackNavigator<RootStackParamList>();
-
-export const AppNavigator: React.FC = () => {
+/**
+ * Main application navigator
+ * 
+ * Sets up all routes and navigation structure.
+ * Default route redirects to onboarding (can be changed to dashboard if user is already onboarded).
+ */
+export function AppNavigator() {
   return (
-    <Stack.Navigator
-      initialRouteName="Home"
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#f4511e',
-        },
-        headerTintColor: '#fff',
-        headerTitleStyle: {
-          fontWeight: 'bold',
-        },
-      }}
-    >
-      <Stack.Screen name="Home" component={HomeScreen} />
-      <Stack.Screen name="LogBench" component={LogBenchScreen} />
-      <Stack.Screen name="History" component={HistoryScreen} />
-      <Stack.Screen name="Profile" component={ProfileScreen} />
-    </Stack.Navigator>
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Navigate to="/onboarding" replace />} />
+        <Route path="/onboarding" element={<OnboardingScreen />} />
+        <Route path="/dashboard" element={<DashboardScreen />} />
+        <Route path="/log-session" element={<LogBenchScreen />} />
+        <Route path="/history" element={<HistoryScreen />} />
+        <Route path="/settings" element={<SettingsScreen />} />
+      </Routes>
+    </BrowserRouter>
   );
-};
+}
 
