@@ -63,21 +63,47 @@ export function estimateBaselineOneRm(
     };
   }
   
-  // Step 2: Convert each set to 1RM estimate
-  const oneRmEstimates = estimate1RmFromSets(recentSets);
-  
-  // Step 3: Calculate weighted average (recency weighting)
-  let baselineOneRm = calculateWeightedAverage(recentSets, oneRmEstimates, referenceDate);
-  
-  // Step 4: Get most recent tested 1RM for calibration and hard reset
+  // Step 2: Get most recent tested 1RM first
   const mostRecentTested1Rm = getMostRecentTestedOneRm(testedOneRms);
   
-  // Step 5: Apply calibration factor
-  const calibrationFactor = calculateCalibrationFactor(mostRecentTested1Rm, baselineOneRm);
-  baselineOneRm = applyCalibration(baselineOneRm, calibrationFactor);
+  // Step 3: Convert each set to 1RM estimate
+  const oneRmEstimates = estimate1RmFromSets(recentSets);
   
-  // Step 6: Apply hard reset toward tested 1RM
-  baselineOneRm = applyHardReset(baselineOneRm, mostRecentTested1Rm, referenceDate);
+  // Step 4: Calculate weighted average (recency weighting)
+  let baselineOneRm = calculateWeightedAverage(recentSets, oneRmEstimates, referenceDate);
+  
+  // Step 5: If we have a tested 1RM that's recent, use it as the primary baseline
+  // Only update it if workout data shows clear improvement (>10% higher)
+  if (mostRecentTested1Rm !== null) {
+    const testedAt = mostRecentTested1Rm.testedAt instanceof Date 
+      ? mostRecentTested1Rm.testedAt 
+      : new Date(mostRecentTested1Rm.testedAt);
+    const daysAgo = (referenceDate.getTime() - testedAt.getTime()) / (1000 * 60 * 60 * 24);
+    
+    // If tested 1RM is within 90 days, use it as the true baseline
+    if (daysAgo <= 90) {
+      const improvementRatio = baselineOneRm / mostRecentTested1Rm.weight;
+      
+      // If estimate shows >10% improvement, use the estimate (user has improved)
+      if (improvementRatio > 1.1) {
+        // User has clearly improved - use the estimate but keep it close to tested if very recent
+        if (daysAgo <= 30) {
+          // Very recent test, but user improved - blend slightly toward tested
+          baselineOneRm = (mostRecentTested1Rm.weight * 0.1) + (baselineOneRm * 0.9);
+        }
+        // Otherwise, trust the estimate (user has improved)
+      } else {
+        // No clear improvement - use tested 1RM as the true baseline
+        baselineOneRm = mostRecentTested1Rm.weight;
+      }
+    } else {
+      // Tested 1RM is old (>90 days), apply calibration and reset as before
+      const calibrationFactor = calculateCalibrationFactor(mostRecentTested1Rm, baselineOneRm);
+      baselineOneRm = applyCalibration(baselineOneRm, calibrationFactor);
+      baselineOneRm = applyHardReset(baselineOneRm, mostRecentTested1Rm, referenceDate);
+    }
+  }
+  // If no tested 1RM exists, baselineOneRm stays as the estimate from workouts
   
   // Step 7: Calculate uncertainty range
   const recentSetCount = filterSetsByDateRange(recentSets, 60, referenceDate).length;

@@ -51,9 +51,6 @@ export function OnboardingScreen() {
         const trimmed = knownOneRm.trim();
         const weight = parseFloat(trimmed);
         
-        // Debug logging
-        console.log('Parsing 1RM:', { trimmed, weight, isNaN: isNaN(weight), type: typeof weight });
-        
         if (isNaN(weight) || !isFinite(weight) || weight <= 0) {
           alert(`Please enter a valid positive number for 1RM. You entered: "${trimmed}"`);
           setSaving(false);
@@ -61,9 +58,14 @@ export function OnboardingScreen() {
         }
         
         try {
+          // Default to 30 days ago since this is a "last tested" value, not tested today
+          // This prevents the algorithm from over-weighting an old PR as if it was tested today
+          const testedDate = new Date();
+          testedDate.setDate(testedDate.getDate() - 30);
+          
           const tested1Rm = createTestedOneRm(
             `tested_${Date.now()}`,
-            new Date(),
+            testedDate,
             weight
           );
           await testedOneRmRepository.addTestedOneRm(tested1Rm);
