@@ -308,3 +308,190 @@ describe('estimateOneRmWithCategory', () => {
   });
 });
 
+describe('estimate directionality', () => {
+  const baseDate = new Date('2024-01-15');
+  const mockProfile = createUserProfile(25, 'male', 80);
+
+  describe('weight progression', () => {
+    it('should increase estimate when sets get heavier', () => {
+      const lighterSets = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+      ];
+      const heavierSets = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', new Date('2024-01-12'), 110, 5, 0), // Heavier weight
+      ];
+
+      const resultLighter = estimateBaselineOneRm({
+        benchSets: lighterSets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      const resultHeavier = estimateBaselineOneRm({
+        benchSets: heavierSets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      expect(resultHeavier.baselineOneRm).toBeGreaterThan(resultLighter.baselineOneRm);
+    });
+
+    it('should increase estimate when same weight is lifted for more reps', () => {
+      const fewerReps = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 3, 0),
+      ];
+      const moreReps = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0), // More reps
+      ];
+
+      const resultFewer = estimateBaselineOneRm({
+        benchSets: fewerReps,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      const resultMore = estimateBaselineOneRm({
+        benchSets: moreReps,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      expect(resultMore.baselineOneRm).toBeGreaterThan(resultFewer.baselineOneRm);
+    });
+  });
+
+  describe('RIR (Reps in Reserve) impact', () => {
+    it('should increase estimate when RIR increases (more reserve capacity)', () => {
+      // Higher RIR means more reps in reserve, which indicates higher 1RM capacity
+      // Formula: 1RM = weight × (1 + (reps + rir) / 30)
+      // So 5 reps with 3 RIR = effective 8 reps → higher 1RM
+      // And 5 reps with 0 RIR = effective 5 reps → lower 1RM
+      const lowerRir = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0), // 0 RIR (to failure) = 5 effective reps
+      ];
+      const higherRir = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 3), // 3 RIR = 8 effective reps
+      ];
+
+      const resultLowerRir = estimateBaselineOneRm({
+        benchSets: lowerRir,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      const resultHigherRir = estimateBaselineOneRm({
+        benchSets: higherRir,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      // Higher RIR (more reserve) should give higher estimate
+      expect(resultHigherRir.baselineOneRm).toBeGreaterThan(resultLowerRir.baselineOneRm);
+    });
+  });
+
+  describe('tested 1RM impact', () => {
+    it('should move estimate toward new tested 1RM when recorded', () => {
+      const sets = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+      ];
+
+      // Estimate without tested 1RM
+      const resultNoTested = estimateBaselineOneRm({
+        benchSets: sets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      // Estimate with tested 1RM higher than current estimate
+      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-14'), 130);
+      const resultWithTested = estimateBaselineOneRm({
+        benchSets: sets,
+        testedOneRms: [tested1Rm],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      // Estimate should move toward tested 1RM
+      expect(resultWithTested.baselineOneRm).toBeGreaterThan(resultNoTested.baselineOneRm);
+    });
+
+    it('should move estimate toward lower tested 1RM when recorded', () => {
+      const sets = [
+        createBenchSet('1', new Date('2024-01-10'), 120, 5, 0), // Higher weight
+      ];
+
+      // Estimate without tested 1RM
+      const resultNoTested = estimateBaselineOneRm({
+        benchSets: sets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      // Estimate with tested 1RM lower than current estimate
+      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-14'), 100);
+      const resultWithTested = estimateBaselineOneRm({
+        benchSets: sets,
+        testedOneRms: [tested1Rm],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      // Estimate should move toward tested 1RM (downward)
+      expect(resultWithTested.baselineOneRm).toBeLessThan(resultNoTested.baselineOneRm);
+    });
+  });
+
+  describe('few sets scenarios', () => {
+    it('should handle 2-3 sets correctly', () => {
+      const fewSets = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', new Date('2024-01-12'), 105, 5, 0),
+      ];
+
+      const result = estimateBaselineOneRm({
+        benchSets: fewSets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      expect(result.baselineOneRm).toBeGreaterThan(0);
+      expect(result.confidenceLevel).toBeGreaterThan(0);
+      expect(result.confidenceLevel).toBeLessThan(1); // Lower confidence with few sets
+    });
+
+    it('should have higher confidence with tested 1RM even with few sets', () => {
+      const fewSets = [
+        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+      ];
+      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-12'), 120);
+
+      const resultNoTested = estimateBaselineOneRm({
+        benchSets: fewSets,
+        testedOneRms: [],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      const resultWithTested = estimateBaselineOneRm({
+        benchSets: fewSets,
+        testedOneRms: [tested1Rm],
+        profile: mockProfile,
+        referenceDate: baseDate,
+      });
+
+      expect(resultWithTested.confidenceLevel).toBeGreaterThan(resultNoTested.confidenceLevel);
+    });
+  });
+});
+
