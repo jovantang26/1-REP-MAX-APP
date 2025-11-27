@@ -1,5 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useUserProfile } from '../hooks';
+import { createUserProfile } from '../domain';
+import { createTestedOneRm } from '../domain';
+import { testedOneRmRepository } from '../storage';
 
 /**
  * Onboarding / Profile Setup Screen
@@ -12,16 +16,75 @@ import { useNavigate } from 'react-router-dom';
  */
 export function OnboardingScreen() {
   const navigate = useNavigate();
+  const { profile, saveProfile } = useUserProfile();
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const [bodyweight, setBodyweight] = useState<string>('');
   const [knownOneRm, setKnownOneRm] = useState<string>('');
+  const [saving, setSaving] = useState<boolean>(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Pre-fill form if profile exists
+  React.useEffect(() => {
+    if (profile) {
+      setAge(profile.age.toString());
+      setGender(profile.gender);
+      setBodyweight(profile.bodyweight.toString());
+    }
+  }, [profile]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // TODO: Save profile data
-    // Navigate to dashboard after onboarding
-    navigate('/dashboard');
+    setSaving(true);
+
+    try {
+      // Create and save profile
+      const newProfile = createUserProfile(
+        parseInt(age, 10),
+        gender,
+        parseFloat(bodyweight)
+      );
+      
+      const saved = await saveProfile(newProfile);
+
+      // If user provided a known 1RM, save it as a tested 1RM
+      if (knownOneRm && knownOneRm.trim() !== '') {
+        const trimmed = knownOneRm.trim();
+        const weight = parseFloat(trimmed);
+        
+        // Debug logging
+        console.log('Parsing 1RM:', { trimmed, weight, isNaN: isNaN(weight), type: typeof weight });
+        
+        if (isNaN(weight) || !isFinite(weight) || weight <= 0) {
+          alert(`Please enter a valid positive number for 1RM. You entered: "${trimmed}"`);
+          setSaving(false);
+          return;
+        }
+        
+        try {
+          const tested1Rm = createTestedOneRm(
+            `tested_${Date.now()}`,
+            new Date(),
+            weight
+          );
+          await testedOneRmRepository.addTestedOneRm(tested1Rm);
+        } catch (error) {
+          console.error('Error creating tested 1RM:', error);
+          alert(`Failed to save 1RM: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          setSaving(false);
+          return;
+        }
+      }
+
+      if (saved) {
+        // Navigate to dashboard after onboarding
+        navigate('/dashboard');
+      }
+    } catch (error) {
+      console.error('Failed to save profile:', error);
+      alert('Failed to save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -82,6 +145,7 @@ export function OnboardingScreen() {
             id="knownOneRm"
             type="number"
             step="0.1"
+            min="0.1"
             value={knownOneRm}
             onChange={(e) => setKnownOneRm(e.target.value)}
             style={{ width: '100%', padding: '8px', fontSize: '16px' }}
@@ -90,18 +154,19 @@ export function OnboardingScreen() {
 
         <button
           type="submit"
+          disabled={saving}
           style={{
             width: '100%',
             padding: '12px',
             fontSize: '16px',
-            backgroundColor: '#007bff',
+            backgroundColor: saving ? '#6c757d' : '#007bff',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: 'pointer',
+            cursor: saving ? 'not-allowed' : 'pointer',
           }}
         >
-          Complete Setup
+          {saving ? 'Saving...' : 'Complete Setup'}
         </button>
       </form>
     </div>

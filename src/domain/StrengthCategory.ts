@@ -72,11 +72,11 @@ export function createStrengthCategory(
  * @returns The ratio (1RM / bodyweight)
  */
 export function calculateOneRmRatio(oneRm: number, bodyweight: number): number {
-  if (bodyweight <= 0) {
+  if (typeof bodyweight !== 'number' || isNaN(bodyweight) || !isFinite(bodyweight) || bodyweight <= 0) {
     throw new Error('Bodyweight must be a positive number');
   }
   
-  if (oneRm <= 0) {
+  if (typeof oneRm !== 'number' || isNaN(oneRm) || !isFinite(oneRm) || oneRm <= 0) {
     throw new Error('1RM must be a positive number');
   }
   

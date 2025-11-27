@@ -45,11 +45,31 @@ export function estimateOneRmWithCategory(
   });
   
   // Determine strength category
-  const strengthCategory = getStrengthCategoryForGender(
-    estimate.baselineOneRm,
-    profile.bodyweight,
-    profile.gender
-  );
+  // If baseline 1RM is 0, try to use the most recent tested 1RM for category calculation
+  let oneRmForCategory = estimate.baselineOneRm;
+  if (oneRmForCategory <= 0 && testedOneRms.length > 0) {
+    // Sort by date and get the most recent
+    const sorted = [...testedOneRms].sort((a, b) => {
+      const dateA = a.testedAt instanceof Date ? a.testedAt : new Date(a.testedAt);
+      const dateB = b.testedAt instanceof Date ? b.testedAt : new Date(b.testedAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+    oneRmForCategory = sorted[0].weight;
+  }
+  
+  // Only calculate strength category if we have a valid 1RM
+  const strengthCategory = oneRmForCategory > 0
+    ? getStrengthCategoryForGender(
+        oneRmForCategory,
+        profile.bodyweight,
+        profile.gender
+      )
+    : {
+        category: 'novice' as const,
+        ratio: 0,
+        minRatio: 0,
+        maxRatio: 0,
+      };
   
   return {
     baselineOneRm: estimate.baselineOneRm,

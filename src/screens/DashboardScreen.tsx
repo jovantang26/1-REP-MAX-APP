@@ -1,5 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useCurrentBaselineOneRm } from '../hooks';
+import { testedOneRmRepository } from '../storage';
 
 /**
  * Home / Dashboard Screen
@@ -13,13 +15,58 @@ import { useNavigate } from 'react-router-dom';
  */
 export function DashboardScreen() {
   const navigate = useNavigate();
+  const { result, loading, error } = useCurrentBaselineOneRm();
+  const [lastTested1Rm, setLastTested1Rm] = React.useState<number | null>(null);
 
-  // Placeholder data - will be replaced with actual data later
-  const baseline1Rm = '120';
-  const uncertaintyRange = '±5 kg';
-  const strengthCategory = 'Intermediate';
-  const lastTested1Rm = '115 kg';
-  const lastSetsCount = 3;
+  // Load last tested 1RM
+  React.useEffect(() => {
+    testedOneRmRepository.getLatestTestedOneRm().then((tested) => {
+      if (tested) {
+        setLastTested1Rm(tested.weight);
+      }
+    });
+  }, []);
+
+  if (loading) {
+    return (
+      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+        <h1>Dashboard</h1>
+        <p>Loading...</p>
+      </div>
+    );
+  }
+
+  if (error || !result) {
+    return (
+      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+        <h1>Dashboard</h1>
+        <p style={{ color: '#dc3545' }}>
+          {error ? `Error: ${error.message}` : 'No profile found. Please complete onboarding.'}
+        </p>
+        <button
+          onClick={() => navigate('/onboarding')}
+          style={{
+            padding: '12px 24px',
+            fontSize: '16px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+            marginTop: '10px',
+          }}
+        >
+          Go to Onboarding
+        </button>
+      </div>
+    );
+  }
+
+  const baseline1Rm = result.baselineOneRm.toFixed(1);
+  const uncertaintyLow = result.uncertaintyRange.low.toFixed(1);
+  const uncertaintyHigh = result.uncertaintyRange.high.toFixed(1);
+  const strengthCategory = result.strengthCategory.category.charAt(0).toUpperCase() + 
+    result.strengthCategory.category.slice(1);
 
   return (
     <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
@@ -36,35 +83,29 @@ export function DashboardScreen() {
           {baseline1Rm} kg
         </div>
         <div style={{ color: '#666', marginBottom: '10px' }}>
-          Uncertainty: {uncertaintyRange}
+          Uncertainty: {uncertaintyLow} - {uncertaintyHigh} kg
+        </div>
+        <div style={{ color: '#666', marginBottom: '10px' }}>
+          Confidence: {(result.confidenceLevel * 100).toFixed(0)}%
         </div>
         <div style={{ color: '#666' }}>
           Strength Category: <strong>{strengthCategory}</strong>
         </div>
       </div>
 
-      <div style={{ 
-        backgroundColor: '#f5f5f5', 
-        padding: '20px', 
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h3 style={{ marginTop: 0 }}>Last Tested 1RM</h3>
-        <div style={{ fontSize: '24px' }}>
-          {lastTested1Rm}
+      {lastTested1Rm !== null && (
+        <div style={{ 
+          backgroundColor: '#f5f5f5', 
+          padding: '20px', 
+          borderRadius: '8px',
+          marginBottom: '20px'
+        }}>
+          <h3 style={{ marginTop: 0 }}>Last Tested 1RM</h3>
+          <div style={{ fontSize: '24px' }}>
+            {lastTested1Rm.toFixed(1)} kg
+          </div>
         </div>
-      </div>
-
-      <div style={{ 
-        padding: '15px',
-        backgroundColor: '#e7f3ff',
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <p style={{ margin: 0 }}>
-          Based on your last {lastSetsCount} sets...
-        </p>
-      </div>
+      )}
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
         <button

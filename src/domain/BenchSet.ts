@@ -52,7 +52,7 @@ export function createBenchSet(
     throw new Error('PerformedAt date must be provided');
   }
   
-  if (weight <= 0) {
+  if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0) {
     throw new Error('Weight must be a positive number');
   }
   
