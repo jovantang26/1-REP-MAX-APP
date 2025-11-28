@@ -3,10 +3,18 @@ import type { BenchSet, TestedOneRm, LiftType } from '../domain';
 /**
  * Filters bench sets to only include those within the last N days.
  * 
+ * B2.4.2 - Time Window Rules:
+ * - Uses last 90 days of sets by default
+ * - Weight the last 60 days more heavily (handled in weighting.ts)
+ * - Ignore sets outside the window
+ * 
  * PER-LIFT INDEPENDENCE RULE: This function does NOT filter by liftType.
  * Callers must filter by liftType BEFORE calling this function to ensure
  * per-lift independence. See filterSetsByLiftTypeAndDateRange for a
  * combined filter.
+ * 
+ * GUARDRAIL: No cross-lift mixing allowed. Time window rules are identical
+ * for all lifts (90-day window, 60-day weighting).
  * 
  * @param sets - Array of bench sets (should already be filtered by liftType)
  * @param days - Number of days to look back (default: 90)
@@ -33,8 +41,15 @@ export function filterSetsByDateRange(
 /**
  * Filters bench sets by liftType AND date range.
  * 
+ * B2.4.2 - Filtering & Time Window Rules:
+ * - Filters ONLY sets/tests of the selected liftType (strict separation)
+ * - Uses last 90 days of sets
+ * - Time window rules identical for all lifts
+ * 
  * GUARDRAIL: This function ensures per-lift independence by filtering
  * both by liftType and date range. Use this when you need both filters.
+ * 
+ * No cross-lift mixing allowed. All sets must be for the same liftType.
  * 
  * @param sets - Array of bench sets
  * @param liftType - The lift type to filter by (required for independence)

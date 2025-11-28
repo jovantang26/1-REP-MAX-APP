@@ -3,10 +3,14 @@ import type { BenchSet } from '../domain';
 /**
  * Calculates a recency weight for a bench set.
  * 
- * Sets within the last 60 days get full weight (1.0).
- * Sets between 60-90 days get reduced weight (0.5).
+ * B2.4.2 - Time Window Rules:
+ * - Sets within the last 60 days get full weight (1.0) - weighted more heavily
+ * - Sets between 60-90 days get reduced weight (0.5)
+ * - Sets outside 90 days are ignored (filtered out before this function)
  * 
- * @param set - The bench set
+ * Time window rules are identical for all lifts (bench, squat, deadlift).
+ * 
+ * @param set - The bench set (should already be filtered by liftType)
  * @param referenceDate - Reference date (default: now)
  * @returns Weight factor (0.0 to 1.0)
  */

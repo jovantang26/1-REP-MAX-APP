@@ -3,6 +3,8 @@ import type { BenchSet } from '../domain';
 /**
  * Converts a training set (weight, reps, RIR) to an estimated 1RM.
  * 
+ * B2.4.1 - Per-Set 1RM Estimator (alias: estimateOneRMFromSet)
+ * 
  * GUARDRAIL (B2.2.4): This function is lift-agnostic. The Epley formula
  * works for all lift types (bench, squat, deadlift). No bench-only logic.
  * 
@@ -23,6 +25,16 @@ import type { BenchSet } from '../domain';
 export function estimate1RmFromSet(set: BenchSet): number {
   const effectiveReps = set.reps + set.rir;
   return set.weight * (1 + effectiveReps / 30);
+}
+
+/**
+ * B2.4.1 - Alias for estimate1RmFromSet to match API specification.
+ * 
+ * @param set - The training set to convert
+ * @returns Estimated 1RM in kilograms
+ */
+export function estimateOneRMFromSet(set: BenchSet): number {
+  return estimate1RmFromSet(set);
 }
 
 /**
