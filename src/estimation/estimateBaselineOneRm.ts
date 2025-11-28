@@ -88,10 +88,10 @@ export function estimateBaselineOneRm(
   // Step 5: If we have a tested 1RM that's recent, use it as the primary baseline
   // Only update it if workout data shows clear improvement (>10% higher)
   if (mostRecentTested1Rm !== null) {
-    const testedAt = mostRecentTested1Rm.testedAt instanceof Date 
-      ? mostRecentTested1Rm.testedAt 
-      : new Date(mostRecentTested1Rm.testedAt);
-    const daysAgo = (referenceDate.getTime() - testedAt.getTime()) / (1000 * 60 * 60 * 24);
+    const timestamp = mostRecentTested1Rm.timestamp instanceof Date 
+      ? mostRecentTested1Rm.timestamp 
+      : new Date(mostRecentTested1Rm.timestamp);
+    const daysAgo = (referenceDate.getTime() - timestamp.getTime()) / (1000 * 60 * 60 * 24);
     
     // If tested 1RM is within 90 days, use it as the true baseline
     if (daysAgo <= 90) {
@@ -129,9 +129,9 @@ export function estimateBaselineOneRm(
   
   // Step 8: Calculate confidence level
   const tested1RmDaysAgo = mostRecentTested1Rm
-    ? (referenceDate.getTime() - (mostRecentTested1Rm.testedAt instanceof Date 
-        ? mostRecentTested1Rm.testedAt 
-        : new Date(mostRecentTested1Rm.testedAt)).getTime()) / (1000 * 60 * 60 * 24)
+    ? (referenceDate.getTime() - (mostRecentTested1Rm.timestamp instanceof Date 
+        ? mostRecentTested1Rm.timestamp 
+        : new Date(mostRecentTested1Rm.timestamp)).getTime()) / (1000 * 60 * 60 * 24)
     : null;
   
   const confidenceLevel = calculateConfidenceLevel(

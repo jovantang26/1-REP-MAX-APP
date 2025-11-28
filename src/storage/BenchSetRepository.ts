@@ -35,9 +35,11 @@ export class BenchSetRepository {
       if (isBenchSet(item)) {
         sets.push({
           ...item,
-          performedAt: typeof item.performedAt === 'string' 
-            ? deserializeDate(item.performedAt) 
-            : item.performedAt,
+          timestamp: typeof item.timestamp === 'string' 
+            ? deserializeDate(item.timestamp) 
+            : (typeof (item as any).performedAt === 'string' 
+              ? deserializeDate((item as any).performedAt) 
+              : (item as any).performedAt || item.timestamp),
         });
       } else {
         console.warn('Invalid bench set data found in storage, skipping:', item);
@@ -61,11 +63,11 @@ export class BenchSetRepository {
     const allSets = await this.getBenchSets();
     
     return allSets.filter((set) => {
-      const performedAt = set.performedAt instanceof Date 
-        ? set.performedAt 
-        : deserializeDate(set.performedAt);
+      const timestamp = set.timestamp instanceof Date 
+        ? set.timestamp 
+        : deserializeDate(set.timestamp);
       
-      return performedAt >= from && performedAt <= to;
+      return timestamp >= from && timestamp <= to;
     });
   }
 
@@ -103,11 +105,11 @@ export class BenchSetRepository {
     const setsByLift = await this.getBenchSetsByLiftType(liftType);
     
     return setsByLift.filter((set) => {
-      const performedAt = set.performedAt instanceof Date 
-        ? set.performedAt 
-        : deserializeDate(set.performedAt);
+      const timestamp = set.timestamp instanceof Date 
+        ? set.timestamp 
+        : deserializeDate(set.timestamp);
       
-      return performedAt >= from && performedAt <= to;
+      return timestamp >= from && timestamp <= to;
     });
   }
 
@@ -125,13 +127,13 @@ export class BenchSetRepository {
       // Update existing set
       allSets[existingIndex] = {
         ...set,
-        performedAt: serializeDate(set.performedAt),
+        timestamp: serializeDate(set.timestamp),
       };
     } else {
       // Add new set
       allSets.push({
         ...set,
-        performedAt: serializeDate(set.performedAt),
+        timestamp: serializeDate(set.timestamp),
       });
     }
 

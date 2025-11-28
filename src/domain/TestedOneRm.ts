@@ -3,9 +3,11 @@ import type { LiftType } from './LiftType';
 /**
  * TestedOneRm represents a true 1RM attempt that was actually tested.
  * 
- * IMPORTANT: This model is lift-agnostic. The liftType field determines
- * which lift this tested 1RM belongs to. All estimation and calibration
+ * IMPORTANT: This model is lift-agnostic. The liftType field is MANDATORY and
+ * determines which lift this tested 1RM belongs to. All estimation and calibration
  * logic must filter by liftType to ensure per-lift independence.
+ * 
+ * No logic may assume Bench is the default lift. liftType must always be specified.
  * 
  * This is distinct from:
  * - Baseline 1RM: A reference 1RM used for initial calculations
@@ -24,11 +26,11 @@ export interface TestedOneRm {
   /** Unique identifier for this tested 1RM */
   id: string;
   
-  /** Type of lift tested (bench, squat, or deadlift) */
+  /** Type of lift tested (bench, squat, or deadlift) - MANDATORY */
   liftType: LiftType;
   
-  /** Date and time when the 1RM was tested (ISO string or Date) */
-  testedAt: Date | string;
+  /** Timestamp when the 1RM was tested (ISO string or Date) */
+  timestamp: Date | string;
   
   /** Weight successfully lifted for 1 rep in kilograms */
   weight: number;
@@ -39,11 +41,11 @@ export interface TestedOneRm {
  * 
  * GUARDRAIL: liftType is required and must be a valid LiftType.
  * This ensures all tested 1RMs are properly categorized and can be filtered
- * independently by lift type.
+ * independently by lift type. No default liftType is assumed.
  * 
  * @param id - Unique identifier for the tested 1RM
- * @param liftType - Type of lift tested (bench, squat, or deadlift)
- * @param testedAt - Date and time when the 1RM was tested
+ * @param liftType - Type of lift tested (bench, squat, or deadlift) - MANDATORY
+ * @param timestamp - Timestamp when the 1RM was tested
  * @param weight - Weight successfully lifted in kilograms (must be positive)
  * @returns A validated TestedOneRm object
  * @throws Error if validation fails
@@ -51,7 +53,7 @@ export interface TestedOneRm {
 export function createTestedOneRm(
   id: string,
   liftType: LiftType,
-  testedAt: Date | string,
+  timestamp: Date | string,
   weight: number
 ): TestedOneRm {
   if (!id || id.trim().length === 0) {
@@ -62,8 +64,8 @@ export function createTestedOneRm(
     throw new Error('liftType must be "bench", "squat", or "deadlift"');
   }
   
-  if (!testedAt) {
-    throw new Error('TestedAt date must be provided');
+  if (!timestamp) {
+    throw new Error('Timestamp must be provided');
   }
   
   if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0) {
@@ -73,7 +75,7 @@ export function createTestedOneRm(
   return {
     id: id.trim(),
     liftType,
-    testedAt,
+    timestamp,
     weight,
   };
 }
@@ -95,7 +97,7 @@ export function isTestedOneRm(obj: unknown): obj is TestedOneRm {
     tested.id.length > 0 &&
     typeof tested.liftType === 'string' &&
     (tested.liftType === 'bench' || tested.liftType === 'squat' || tested.liftType === 'deadlift') &&
-    (tested.testedAt instanceof Date || typeof tested.testedAt === 'string') &&
+    (tested.timestamp instanceof Date || typeof tested.timestamp === 'string') &&
     typeof tested.weight === 'number' &&
     tested.weight > 0
   );

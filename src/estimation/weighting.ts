@@ -14,11 +14,11 @@ export function calculateRecencyWeight(
   set: BenchSet,
   referenceDate: Date = new Date()
 ): number {
-  const performedAt = set.performedAt instanceof Date 
-    ? set.performedAt 
-    : new Date(set.performedAt);
+  const timestamp = set.timestamp instanceof Date 
+    ? set.timestamp 
+    : new Date(set.timestamp);
   
-  const daysAgo = (referenceDate.getTime() - performedAt.getTime()) / (1000 * 60 * 60 * 24);
+  const daysAgo = (referenceDate.getTime() - timestamp.getTime()) / (1000 * 60 * 60 * 24);
   
   if (daysAgo <= 60) {
     return 1.0; // Full weight for last 60 days

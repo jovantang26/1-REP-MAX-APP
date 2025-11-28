@@ -22,11 +22,11 @@ export function filterSetsByDateRange(
   cutoffDate.setDate(cutoffDate.getDate() - days);
 
   return sets.filter((set) => {
-    const performedAt = set.performedAt instanceof Date 
-      ? set.performedAt 
-      : new Date(set.performedAt);
+    const timestamp = set.timestamp instanceof Date 
+      ? set.timestamp 
+      : new Date(set.timestamp);
     
-    return performedAt >= cutoffDate;
+    return timestamp >= cutoffDate;
   });
 }
 
@@ -77,11 +77,11 @@ export function filterTestedOneRmsByDateRange(
   cutoffDate.setDate(cutoffDate.getDate() - days);
 
   return testedOneRms.filter((record) => {
-    const testedAt = record.testedAt instanceof Date 
-      ? record.testedAt 
-      : new Date(record.testedAt);
+    const timestamp = record.timestamp instanceof Date 
+      ? record.timestamp 
+      : new Date(record.timestamp);
     
-    return testedAt >= cutoffDate;
+    return timestamp >= cutoffDate;
   });
 }
 
@@ -130,18 +130,18 @@ export function getMostRecentTestedOneRm(
   
   // Find the most recent by date
   let mostRecent = testedOneRms[0];
-  let mostRecentDate = mostRecent.testedAt instanceof Date 
-    ? mostRecent.testedAt 
-    : new Date(mostRecent.testedAt);
+  let mostRecentDate = mostRecent.timestamp instanceof Date 
+    ? mostRecent.timestamp 
+    : new Date(mostRecent.timestamp);
   
   for (const record of testedOneRms) {
-    const testedAt = record.testedAt instanceof Date 
-      ? record.testedAt 
-      : new Date(record.testedAt);
+    const timestamp = record.timestamp instanceof Date 
+      ? record.timestamp 
+      : new Date(record.timestamp);
     
-    if (testedAt > mostRecentDate) {
+    if (timestamp > mostRecentDate) {
       mostRecent = record;
-      mostRecentDate = testedAt;
+      mostRecentDate = timestamp;
     }
   }
   

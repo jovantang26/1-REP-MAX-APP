@@ -8,14 +8,28 @@
  * - Each has its own strength category
  * 
  * IMPORTANT: All estimation, storage, and visualization logic must filter
- * by liftType to prevent cross-lift contamination.
+ * by liftType to prevent cross-lift contamination. liftType is MANDATORY
+ * everywhere - no logic may assume Bench is the default.
+ * 
+ * Current supported lifts:
+ * - "bench" - Bench Press
+ * - "squat" - Back Squat
+ * - "deadlift" - Deadlift (Conventional)
  * 
  * Future expandability: This type can be extended to include:
- * - "overhead_press" (Overhead Press)
- * - "barbell_row" (Barbell Row)
+ * - "overhead_press" (Overhead Press / Military Press)
+ * - "barbell_row" (Barbell Row / Pendlay Row)
  * - "front_squat" (Front Squat)
  * - "sumo_deadlift" (Sumo Deadlift)
+ * - "romanian_deadlift" (Romanian Deadlift / RDL)
+ * - "pause_bench" (Pause Bench Press)
  * - And other variations as needed
+ * 
+ * When adding new lift types:
+ * 1. Add the type to this union
+ * 2. Add display name to LIFT_DISPLAY_NAMES
+ * 3. Add strength category thresholds in strengthCategory.ts
+ * 4. Update isLiftType type guard
  */
 export type LiftType = "bench" | "squat" | "deadlift";
 

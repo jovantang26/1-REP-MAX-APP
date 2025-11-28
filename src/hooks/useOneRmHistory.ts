@@ -98,14 +98,14 @@ export function useOneRmHistory() {
 
       // Add points for days with tested 1RMs
       for (const tested of testedOneRms) {
-        const testedAt = tested.testedAt instanceof Date 
-          ? tested.testedAt 
-          : new Date(tested.testedAt);
-        const dateKey = testedAt.toISOString().split('T')[0];
+        const timestamp = tested.timestamp instanceof Date 
+          ? tested.timestamp 
+          : new Date(tested.timestamp);
+        const dateKey = timestamp.toISOString().split('T')[0];
         
         if (!dateMap.has(dateKey)) {
           dateMap.set(dateKey, {
-            date: testedAt,
+            date: timestamp,
             baselineEstimate: null,
             testedOneRm: tested.weight,
             uncertaintyRange: null,
@@ -176,10 +176,10 @@ export function useOneRmHistory() {
       // Count unique session days
       const sessionDates = new Set<string>();
       for (const set of benchSets) {
-        const performedAt = set.performedAt instanceof Date 
-          ? set.performedAt 
-          : new Date(set.performedAt);
-        sessionDates.add(performedAt.toISOString().split('T')[0]);
+        const timestamp = set.timestamp instanceof Date 
+          ? set.timestamp 
+          : new Date(set.timestamp);
+        sessionDates.add(timestamp.toISOString().split('T')[0]);
       }
       const totalSessions = sessionDates.size;
 

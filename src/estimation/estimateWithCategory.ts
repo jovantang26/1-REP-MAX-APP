@@ -68,8 +68,8 @@ export function estimateOneRmWithCategory(
     if (filteredByLift.length > 0) {
       // Sort by date and get the most recent for this liftType
       const sorted = [...filteredByLift].sort((a, b) => {
-        const dateA = a.testedAt instanceof Date ? a.testedAt : new Date(a.testedAt);
-        const dateB = b.testedAt instanceof Date ? b.testedAt : new Date(b.testedAt);
+        const dateA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+        const dateB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
         return dateB.getTime() - dateA.getTime();
       });
       oneRmForCategory = sorted[0].weight;
@@ -77,8 +77,10 @@ export function estimateOneRmWithCategory(
   }
   
   // Only calculate strength category if we have a valid 1RM
+  // GUARDRAIL: Pass liftType to ensure lift-specific thresholds are used
   const strengthCategory = oneRmForCategory > 0
     ? getStrengthCategoryForGender(
+        liftType,
         oneRmForCategory,
         profile.bodyweight,
         profile.gender

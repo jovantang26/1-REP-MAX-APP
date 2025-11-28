@@ -10,6 +10,10 @@
  * FUTURE-PROOFING PRINCIPLE: All domain models are lift-agnostic and include
  * liftType. All APIs, repositories, and estimation logic must accept and filter
  * by liftType to ensure per-lift independence.
+ * 
+ * IMPORTANT: TrainingSet replaces BenchSet everywhere. BenchSet is maintained
+ * as a legacy alias for backward compatibility during migration. No logic may
+ * assume Bench is the default lift - liftType is MANDATORY everywhere.
  */
 
 // LiftType
@@ -20,9 +24,13 @@ export { LIFT_DISPLAY_NAMES, getLiftDisplayName, isLiftType } from './LiftType';
 export type { UserProfile } from './UserProfile';
 export { createUserProfile, isUserProfile } from './UserProfile';
 
-// BenchSet
-export type { BenchSet } from './BenchSet';
-export { createBenchSet, isBenchSet } from './BenchSet';
+// TrainingSet (replaces BenchSet)
+export type { TrainingSet } from './TrainingSet';
+export { createTrainingSet, isTrainingSet } from './TrainingSet';
+
+// Legacy BenchSet (deprecated - use TrainingSet)
+export type { BenchSet } from './TrainingSet';
+export { createBenchSet, isBenchSet } from './TrainingSet';
 
 // TestedOneRm
 export type { TestedOneRm } from './TestedOneRm';
@@ -35,6 +43,22 @@ export {
   createUncertaintyRange,
   isOneRmEstimate,
 } from './OneRmEstimate';
+
+// BaselineEstimate (per-lift baseline estimate)
+export type { BaselineEstimate, UncertaintyRange as BaselineUncertaintyRange } from './BaselineEstimate';
+export {
+  createBaselineEstimate,
+  isBaselineEstimate,
+} from './BaselineEstimate';
+
+// UserCalibration (per-lift calibration multipliers)
+export type { UserCalibration } from './UserCalibration';
+export {
+  createUserCalibration,
+  createUserCalibrationWithValues,
+  getCalibrationForLift,
+  isUserCalibration,
+} from './UserCalibration';
 
 // StrengthCategory
 export type { StrengthCategory, StrengthCategoryType } from './StrengthCategory';

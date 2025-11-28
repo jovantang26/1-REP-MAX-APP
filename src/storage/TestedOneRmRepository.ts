@@ -35,9 +35,11 @@ export class TestedOneRmRepository {
       if (isTestedOneRm(item)) {
         records.push({
           ...item,
-          testedAt: typeof item.testedAt === 'string' 
-            ? deserializeDate(item.testedAt) 
-            : item.testedAt,
+          timestamp: typeof item.timestamp === 'string' 
+            ? deserializeDate(item.timestamp) 
+            : (typeof (item as any).testedAt === 'string' 
+              ? deserializeDate((item as any).testedAt) 
+              : (item as any).testedAt || item.timestamp),
         });
       } else {
         console.warn('Invalid tested 1RM data found in storage, skipping:', item);
@@ -46,8 +48,8 @@ export class TestedOneRmRepository {
 
     // Sort by date (newest first)
     records.sort((a, b) => {
-      const dateA = a.testedAt instanceof Date ? a.testedAt : deserializeDate(a.testedAt);
-      const dateB = b.testedAt instanceof Date ? b.testedAt : deserializeDate(b.testedAt);
+      const dateA = a.timestamp instanceof Date ? a.timestamp : deserializeDate(a.timestamp);
+      const dateB = b.timestamp instanceof Date ? b.timestamp : deserializeDate(b.timestamp);
       return dateB.getTime() - dateA.getTime();
     });
 
@@ -64,11 +66,11 @@ export class TestedOneRmRepository {
     const allRecords = await this.getTestedOneRms();
     
     return allRecords.filter((record) => {
-      const testedAt = record.testedAt instanceof Date 
-        ? record.testedAt 
-        : deserializeDate(record.testedAt);
+      const timestamp = record.timestamp instanceof Date 
+        ? record.timestamp 
+        : deserializeDate(record.timestamp);
       
-      return testedAt >= from && testedAt <= to;
+      return timestamp >= from && timestamp <= to;
     });
   }
 
@@ -86,13 +88,13 @@ export class TestedOneRmRepository {
       // Update existing record
       allRecords[existingIndex] = {
         ...record,
-        testedAt: serializeDate(record.testedAt),
+        timestamp: serializeDate(record.timestamp),
       };
     } else {
       // Add new record
       allRecords.push({
         ...record,
-        testedAt: serializeDate(record.testedAt),
+        timestamp: serializeDate(record.timestamp),
       });
     }
 
@@ -137,8 +139,8 @@ export class TestedOneRmRepository {
     
     // Sort by date (newest first)
     filtered.sort((a, b) => {
-      const dateA = a.testedAt instanceof Date ? a.testedAt : deserializeDate(a.testedAt);
-      const dateB = b.testedAt instanceof Date ? b.testedAt : deserializeDate(b.testedAt);
+      const dateA = a.timestamp instanceof Date ? a.timestamp : deserializeDate(a.timestamp);
+      const dateB = b.timestamp instanceof Date ? b.timestamp : deserializeDate(b.timestamp);
       return dateB.getTime() - dateA.getTime();
     });
     
