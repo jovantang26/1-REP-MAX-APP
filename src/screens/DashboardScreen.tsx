@@ -4,7 +4,8 @@ import { useCurrentBaselineOneRm, useUserProfile } from '../hooks';
 import { testedOneRmRepository } from '../storage';
 import type { LiftType } from '../domain';
 import { LIFT_DISPLAY_NAMES } from '../domain';
-import { getStrengthCategoryForGender } from '../estimation/strengthCategory';
+import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
+import { calculateOneRmRatio } from '../domain';
 
 /**
  * Home / Dashboard Screen (B2.3.2 - Multi-Lift Dashboard)
@@ -96,19 +97,34 @@ export function DashboardScreen() {
     const hasError = result.error !== null;
     const hasResult = result.result !== null;
 
-    let strengthCategory = null;
-    let ratio = null;
+    // B2.5.3 - Dashboard Category Display Rules
+    // Each lift card must show:
+    // - Category label (e.g. "Intermediate")
+    // - Ratio value (e.g. "1.55× BW")
+    // - Optional microcopy: "Advanced for your bodyweight"
+    let strengthCategoryLabel: string | null = null;
+    let ratio: string | null = null;
+    let ratioValue: number | null = null;
     
     if (hasResult && profile) {
       try {
-        const category = getStrengthCategoryForGender(
+        // Use universal getStrengthCategory function (B2.5.2)
+        const gender = profile.gender.toLowerCase().trim() as "male" | "female";
+        const categoryLabel = getStrengthCategory(
           liftType,
+          gender === "male" || gender === "female" ? gender : "male", // Default to male if invalid
           result.result!.baselineOneRm,
-          profile.bodyweight,
-          profile.gender
+          profile.bodyweight
         );
-        strengthCategory = category.category.charAt(0).toUpperCase() + category.category.slice(1);
-        ratio = category.ratio.toFixed(2);
+        
+        // Capitalize first letter for display
+        strengthCategoryLabel = categoryLabel.charAt(0).toUpperCase() + categoryLabel.slice(1);
+        
+        // Calculate ratio for display
+        ratioValue = calculateOneRmRatio(result.result!.baselineOneRm, profile.bodyweight);
+        if (ratioValue !== null) {
+          ratio = ratioValue.toFixed(2);
+        }
       } catch (error) {
         console.error(`Failed to calculate strength category for ${liftType}:`, error);
       }
@@ -159,9 +175,16 @@ export function DashboardScreen() {
               Confidence: {(result.result!.confidenceLevel * 100).toFixed(0)}%
             </div>
 
-            {strengthCategory && ratio && (
+            {/* B2.5.3 - Category Display: Category label, ratio value, and microcopy */}
+            {strengthCategoryLabel && ratio && (
               <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
-                Strength: <strong>{strengthCategory}</strong> ({ratio}× BW)
+                <div style={{ marginBottom: '4px' }}>
+                  Strength: <strong>{strengthCategoryLabel}</strong> ({ratio}× BW)
+                </div>
+                {/* Optional microcopy: "Advanced for your bodyweight" */}
+                <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+                  {strengthCategoryLabel} for your bodyweight
+                </div>
               </div>
             )}
 

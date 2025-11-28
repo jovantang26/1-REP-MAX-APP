@@ -64,6 +64,7 @@ export {
 export {
   determineStrengthCategoryForGender,
   getStrengthCategoryForGender,
+  getStrengthCategory, // B2.5.2 - Universal function interface
 } from './strengthCategory';
 
 // High-level estimation with category
