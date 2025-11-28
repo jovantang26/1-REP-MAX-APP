@@ -12,6 +12,11 @@ import { calculateUncertaintyRange, calculateConfidenceLevel } from './uncertain
  * PER-LIFT INDEPENDENCE RULE: liftType is REQUIRED. All sets and tested 1RMs
  * will be filtered by liftType to ensure per-lift independence. Each liftType
  * has its own baseline 1RM, calibration factor, and history trend.
+ * 
+ * GUARDRAIL (B2.2.4):
+ * - No assumptions of bench-only logic
+ * - liftType must always be specified (no default)
+ * - All filtering happens via liftType in application logic
  */
 export interface EstimateBaselineOneRmParams {
   /** Type of lift to estimate (bench, squat, or deadlift) - REQUIRED for independence */

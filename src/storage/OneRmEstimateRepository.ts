@@ -5,9 +5,20 @@ import { STORAGE_KEYS, getStorageItem, setStorageItem, serializeDate, deserializ
 /**
  * OneRmEstimateRepository handles storage and retrieval of 1RM estimates.
  * 
+ * STORAGE SCHEMA (B2.2.2):
+ * - Uses shared collection (ONE_RM_ESTIMATES) for ALL lift types
+ * - Do NOT create per-lift storage keys
+ * - All writes must include liftType field
+ * - Filtering by liftType happens in logic, NOT in storage
+ * 
  * PER-LIFT INDEPENDENCE RULE: All methods that retrieve estimates should filter
  * by liftType to ensure per-lift independence. Use getEstimatesByLiftType()
  * to get estimates for a specific lift.
+ * 
+ * GUARDRAILS:
+ * - No assumptions of bench-only logic
+ * - Every write must include liftType
+ * - Filtering always happens via liftType in application logic
  * 
  * Uses localStorage to persist 1RM estimate data locally.
  */

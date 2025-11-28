@@ -3,6 +3,10 @@ import type { TestedOneRm } from '../domain';
 /**
  * Calculates a calibration factor based on tested 1RMs.
  * 
+ * GUARDRAIL (B2.2.4): This function is lift-agnostic. The calibration factor
+ * is calculated per-lift (the tested 1RM and estimates must be for the same
+ * liftType). No bench-only logic.
+ * 
  * Before the first tested 1RM: returns 1.0 (no calibration).
  * After the first tested 1RM: calculates a factor that adjusts estimates
  * toward the user's actual tested values.
@@ -13,8 +17,12 @@ import type { TestedOneRm } from '../domain';
  * This creates a factor between 0.9 and 1.1 that slightly adjusts estimates
  * toward the user's tested values, with a maximum adjustment of ±10%.
  * 
- * @param mostRecentTested1Rm - The most recent tested 1RM, or null
- * @param averageEstimated1Rm - The average estimated 1RM from bench sets
+ * IMPORTANT: The tested 1RM and estimates must be for the same liftType.
+ * This function does NOT filter by liftType - callers must ensure per-lift
+ * independence by filtering before calling.
+ * 
+ * @param mostRecentTested1Rm - The most recent tested 1RM for a specific lift, or null
+ * @param averageEstimated1Rm - The average estimated 1RM from training sets (same lift)
  * @returns Calibration factor (typically between 0.9 and 1.1)
  */
 export function calculateCalibrationFactor(

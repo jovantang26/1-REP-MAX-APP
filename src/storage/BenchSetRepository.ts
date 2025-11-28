@@ -5,17 +5,34 @@ import { STORAGE_KEYS, getStorageItem, setStorageItem, serializeDate, deserializ
 /**
  * BenchSetRepository handles storage and retrieval of lift sets.
  * 
+ * STORAGE SCHEMA (B2.2.2):
+ * - Uses shared collection (TRAINING_SETS) for ALL lift types
+ * - Do NOT create per-lift storage keys
+ * - All writes must include liftType field
+ * - Filtering by liftType happens in logic, NOT in storage
+ * 
  * PER-LIFT INDEPENDENCE RULE: All methods that retrieve sets should filter
  * by liftType to ensure per-lift independence. Use getBenchSetsByLiftType()
  * to get sets for a specific lift.
  * 
- * Uses localStorage to persist bench set data locally.
+ * GUARDRAILS:
+ * - No assumptions of bench-only logic
+ * - Every write must include liftType
+ * - Filtering always happens via liftType in application logic
+ * 
+ * Uses localStorage to persist training set data locally.
  */
 export class BenchSetRepository {
-  private readonly storageKey = STORAGE_KEYS.BENCH_SETS;
+  // Use new shared collection key, fallback to legacy key for migration
+  private readonly storageKey = STORAGE_KEYS.TRAINING_SETS;
+  private readonly legacyStorageKey = STORAGE_KEYS.BENCH_SETS;
 
   /**
    * Retrieves all bench sets from storage.
+   * 
+   * STORAGE SCHEMA (B2.2.2): This reads from the shared TRAINING_SETS collection
+   * which contains sets for ALL lift types. Filtering by liftType happens in
+   * application logic, not in storage.
    * 
    * WARNING: This returns sets for ALL lift types. For per-lift independence,
    * use getBenchSetsByLiftType() instead.
@@ -23,7 +40,9 @@ export class BenchSetRepository {
    * @returns Array of bench sets, or empty array if none exist
    */
   async getBenchSets(): Promise<BenchSet[]> {
-    const stored = getStorageItem<unknown[]>(this.storageKey);
+    // Check new storage key first, fallback to legacy key for migration
+    const stored = getStorageItem<unknown[]>(this.storageKey) || 
+                   getStorageItem<unknown[]>(this.legacyStorageKey);
     
     if (stored === null || !Array.isArray(stored)) {
       return [];

@@ -4,14 +4,18 @@ import { createUncertaintyRange } from '../domain';
 /**
  * Calculates uncertainty range based on data spread and volume.
  * 
+ * GUARDRAIL (B2.2.4): This function is lift-agnostic. Works for all lift types.
+ * The estimates array should contain estimates for a single liftType only.
+ * No bench-only logic.
+ * 
  * Uncertainty is calculated as:
  * - Base uncertainty: ±5% of the estimate
  * - Additional uncertainty based on standard deviation of estimates
  * - Reduced uncertainty if there are many recent sets
  * 
- * @param baseline1Rm - The baseline 1RM estimate
- * @param oneRmEstimates - Array of individual 1RM estimates from sets
- * @param recentSetCount - Number of sets in the last 60 days
+ * @param baseline1Rm - The baseline 1RM estimate (for a specific lift)
+ * @param oneRmEstimates - Array of individual 1RM estimates from sets (same lift)
+ * @param recentSetCount - Number of sets in the last 60 days (same lift)
  * @returns Uncertainty range
  */
 export function calculateUncertaintyRange(
@@ -46,6 +50,9 @@ export function calculateUncertaintyRange(
 /**
  * Calculates confidence level based on data recency and volume.
  * 
+ * GUARDRAIL (B2.2.4): This function is lift-agnostic. All parameters should
+ * be for a single liftType. No bench-only logic.
+ * 
  * Confidence factors:
  * - Base confidence: 0.5 (50%)
  * - Recent sets (last 60 days): +0.1 per set (max +0.3 for 3+ sets)
@@ -53,10 +60,10 @@ export function calculateUncertaintyRange(
  * - Tested 1RM exists: +0.2
  * - Tested 1RM within last 30 days: +0.1
  * 
- * @param recentSetCount - Number of sets in the last 60 days
- * @param olderSetCount - Number of sets between 60-90 days
- * @param hasTested1Rm - Whether a tested 1RM exists
- * @param tested1RmDaysAgo - Days since most recent tested 1RM (null if none)
+ * @param recentSetCount - Number of sets in the last 60 days (for a specific lift)
+ * @param olderSetCount - Number of sets between 60-90 days (for a specific lift)
+ * @param hasTested1Rm - Whether a tested 1RM exists (for a specific lift)
+ * @param tested1RmDaysAgo - Days since most recent tested 1RM (null if none, for a specific lift)
  * @returns Confidence level (0.0 to 1.0)
  */
 export function calculateConfidenceLevel(

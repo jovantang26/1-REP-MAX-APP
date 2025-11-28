@@ -3,16 +3,37 @@
  * 
  * Provides helper functions for serialization/deserialization
  * and date handling for local storage.
+ * 
+ * STORAGE SCHEMA STRATEGY (B2.2.2):
+ * - One shared collection for all sets → TRAINING_SETS (all lift types)
+ * - One shared collection for all tested 1RMs → TESTED_ONE_RMS (all lift types)
+ * - Filtering by liftType happens in logic, NOT in storage
+ * 
+ * GUARDRAILS:
+ * - Do NOT create per-lift storage keys (e.g., no "bench_sets", "squat_sets", etc.)
+ * - All writes must include liftType field
+ * - All reads must filter by liftType in application logic
  */
 
 /**
- * Storage keys used throughout the application
+ * Storage keys used throughout the application.
+ * 
+ * IMPORTANT: These are shared collections for ALL lift types.
+ * Do not create per-lift storage keys. Filtering by liftType
+ * happens in application logic, not in storage structure.
  */
 export const STORAGE_KEYS = {
   PROFILE: '1rm_app_profile',
+  /** Shared collection for all training sets (bench, squat, deadlift) */
+  TRAINING_SETS: '1rm_app_training_sets',
+  /** Legacy key for backward compatibility - maps to TRAINING_SETS */
   BENCH_SETS: '1rm_app_bench_sets',
+  /** Shared collection for all tested 1RMs (bench, squat, deadlift) */
   TESTED_ONE_RMS: '1rm_app_tested_one_rms',
+  /** Shared collection for all 1RM estimates (bench, squat, deadlift) */
   ONE_RM_ESTIMATES: '1rm_app_one_rm_estimates',
+  /** Migration flag to track if data migration has been completed */
+  MIGRATION_COMPLETE: '1rm_app_migration_complete',
 } as const;
 
 /**
