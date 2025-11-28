@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserProfile } from '../hooks';
-import { createUserProfile } from '../domain';
+import { createUserProfile, type LiftType } from '../domain';
 import { createTestedOneRm } from '../domain';
 import { testedOneRmRepository } from '../storage';
 
@@ -51,9 +51,6 @@ export function OnboardingScreen() {
         const trimmed = knownOneRm.trim();
         const weight = parseFloat(trimmed);
         
-        // Debug logging
-        console.log('Parsing 1RM:', { trimmed, weight, isNaN: isNaN(weight), type: typeof weight });
-        
         if (isNaN(weight) || !isFinite(weight) || weight <= 0) {
           alert(`Please enter a valid positive number for 1RM. You entered: "${trimmed}"`);
           setSaving(false);
@@ -61,9 +58,20 @@ export function OnboardingScreen() {
         }
         
         try {
+          // Default to 30 days ago since this is a "last tested" value, not tested today
+          // This prevents the algorithm from over-weighting an old PR as if it was tested today
+          const testedDate = new Date();
+          testedDate.setDate(testedDate.getDate() - 30);
+          
+          // TODO (B2.2+): Allow user to select liftType during onboarding
+          // For now, defaulting to "bench" to maintain backward compatibility
+          // FUTURE-PROOFING: liftType is now required, so we must provide it
+          const liftType: LiftType = 'bench';
+          
           const tested1Rm = createTestedOneRm(
             `tested_${Date.now()}`,
-            new Date(),
+            liftType,
+            testedDate,
             weight
           );
           await testedOneRmRepository.addTestedOneRm(tested1Rm);

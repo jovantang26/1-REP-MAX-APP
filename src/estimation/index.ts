@@ -21,8 +21,11 @@ export {
 // Date filtering
 export {
   filterSetsByDateRange,
+  filterSetsByLiftTypeAndDateRange,
   filterTestedOneRmsByDateRange,
+  filterTestedOneRmsByLiftTypeAndDateRange,
   getMostRecentTestedOneRm,
+  getMostRecentTestedOneRmByLiftType,
 } from './dateFiltering';
 
 // Weighting

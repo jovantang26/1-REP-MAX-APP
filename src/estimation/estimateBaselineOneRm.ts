@@ -1,6 +1,6 @@
-import type { BenchSet, TestedOneRm, UserProfile, UncertaintyRange } from '../domain';
+import type { BenchSet, TestedOneRm, UserProfile, UncertaintyRange, LiftType } from '../domain';
 import { estimate1RmFromSet, estimate1RmFromSets } from './repTo1Rm';
-import { filterSetsByDateRange, getMostRecentTestedOneRm } from './dateFiltering';
+import { filterSetsByLiftTypeAndDateRange, filterSetsByDateRange, getMostRecentTestedOneRmByLiftType } from './dateFiltering';
 import { calculateWeightedAverage } from './weighting';
 import { calculateCalibrationFactor, applyCalibration } from './personalization';
 import { applyHardReset } from './hardReset';
@@ -8,11 +8,17 @@ import { calculateUncertaintyRange, calculateConfidenceLevel } from './uncertain
 
 /**
  * Parameters for estimating baseline 1RM
+ * 
+ * PER-LIFT INDEPENDENCE RULE: liftType is REQUIRED. All sets and tested 1RMs
+ * will be filtered by liftType to ensure per-lift independence. Each liftType
+ * has its own baseline 1RM, calibration factor, and history trend.
  */
 export interface EstimateBaselineOneRmParams {
-  /** Bench sets to use for estimation */
+  /** Type of lift to estimate (bench, squat, or deadlift) - REQUIRED for independence */
+  liftType: LiftType;
+  /** Bench sets to use for estimation (will be filtered by liftType) */
   benchSets: BenchSet[];
-  /** Tested 1RMs for calibration and hard reset */
+  /** Tested 1RMs for calibration and hard reset (will be filtered by liftType) */
   testedOneRms: TestedOneRm[];
   /** User profile for personalization */
   profile: UserProfile;
@@ -35,24 +41,31 @@ export interface BaselineOneRmEstimate {
 /**
  * Estimates baseline 1RM from bench sets, tested 1RMs, and user profile.
  * 
+ * PER-LIFT INDEPENDENCE RULE: This function filters all sets and tested 1RMs
+ * by liftType to ensure per-lift independence. Each liftType has its own:
+ * - Baseline 1RM (calculated only from sets of that liftType)
+ * - Calibration factor (calculated only from tested 1RMs of that liftType)
+ * - History trend (filtered by liftType)
+ * - Strength category (calculated independently per liftType)
+ * 
  * Algorithm:
- * 1. Filter bench sets to last 90 days
+ * 1. Filter bench sets by liftType AND to last 90 days (GUARDRAIL: ensures independence)
  * 2. Convert each set to 1RM estimate using Epley-style formula with RIR
  * 3. Calculate weighted average (more recent sets weighted higher)
- * 4. Apply calibration factor if tested 1RMs exist
- * 5. Apply hard reset toward most recent tested 1RM if available
+ * 4. Apply calibration factor if tested 1RMs exist (filtered by liftType)
+ * 5. Apply hard reset toward most recent tested 1RM if available (filtered by liftType)
  * 6. Calculate uncertainty range and confidence level
  * 
- * @param params - Estimation parameters
+ * @param params - Estimation parameters (liftType is REQUIRED)
  * @returns Baseline 1RM estimate with uncertainty and confidence
  */
 export function estimateBaselineOneRm(
   params: EstimateBaselineOneRmParams
 ): BaselineOneRmEstimate {
-  const { benchSets, testedOneRms, profile, referenceDate = new Date() } = params;
+  const { liftType, benchSets, testedOneRms, profile, referenceDate = new Date() } = params;
   
-  // Step 1: Filter sets to last 90 days
-  const recentSets = filterSetsByDateRange(benchSets, 90, referenceDate);
+  // GUARDRAIL: Step 1 - Filter sets by liftType AND date range to ensure per-lift independence
+  const recentSets = filterSetsByLiftTypeAndDateRange(benchSets, liftType, 90, referenceDate);
   
   // If no sets available, return default estimate
   if (recentSets.length === 0) {
@@ -63,23 +76,49 @@ export function estimateBaselineOneRm(
     };
   }
   
-  // Step 2: Convert each set to 1RM estimate
+  // GUARDRAIL: Step 2 - Get most recent tested 1RM filtered by liftType to ensure per-lift independence
+  const mostRecentTested1Rm = getMostRecentTestedOneRmByLiftType(testedOneRms, liftType);
+  
+  // Step 3: Convert each set to 1RM estimate
   const oneRmEstimates = estimate1RmFromSets(recentSets);
   
-  // Step 3: Calculate weighted average (recency weighting)
+  // Step 4: Calculate weighted average (recency weighting)
   let baselineOneRm = calculateWeightedAverage(recentSets, oneRmEstimates, referenceDate);
   
-  // Step 4: Get most recent tested 1RM for calibration and hard reset
-  const mostRecentTested1Rm = getMostRecentTestedOneRm(testedOneRms);
+  // Step 5: If we have a tested 1RM that's recent, use it as the primary baseline
+  // Only update it if workout data shows clear improvement (>10% higher)
+  if (mostRecentTested1Rm !== null) {
+    const testedAt = mostRecentTested1Rm.testedAt instanceof Date 
+      ? mostRecentTested1Rm.testedAt 
+      : new Date(mostRecentTested1Rm.testedAt);
+    const daysAgo = (referenceDate.getTime() - testedAt.getTime()) / (1000 * 60 * 60 * 24);
+    
+    // If tested 1RM is within 90 days, use it as the true baseline
+    if (daysAgo <= 90) {
+      const improvementRatio = baselineOneRm / mostRecentTested1Rm.weight;
+      
+      // If estimate shows >10% improvement, use the estimate (user has improved)
+      if (improvementRatio > 1.1) {
+        // User has clearly improved - use the estimate but keep it close to tested if very recent
+        if (daysAgo <= 30) {
+          // Very recent test, but user improved - blend slightly toward tested
+          baselineOneRm = (mostRecentTested1Rm.weight * 0.1) + (baselineOneRm * 0.9);
+        }
+        // Otherwise, trust the estimate (user has improved)
+      } else {
+        // No clear improvement - use tested 1RM as the true baseline
+        baselineOneRm = mostRecentTested1Rm.weight;
+      }
+    } else {
+      // Tested 1RM is old (>90 days), apply calibration and reset as before
+      const calibrationFactor = calculateCalibrationFactor(mostRecentTested1Rm, baselineOneRm);
+      baselineOneRm = applyCalibration(baselineOneRm, calibrationFactor);
+      baselineOneRm = applyHardReset(baselineOneRm, mostRecentTested1Rm, referenceDate);
+    }
+  }
+  // If no tested 1RM exists, baselineOneRm stays as the estimate from workouts
   
-  // Step 5: Apply calibration factor
-  const calibrationFactor = calculateCalibrationFactor(mostRecentTested1Rm, baselineOneRm);
-  baselineOneRm = applyCalibration(baselineOneRm, calibrationFactor);
-  
-  // Step 6: Apply hard reset toward tested 1RM
-  baselineOneRm = applyHardReset(baselineOneRm, mostRecentTested1Rm, referenceDate);
-  
-  // Step 7: Calculate uncertainty range
+  // Step 7: Calculate uncertainty range (recentSets already filtered by liftType)
   const recentSetCount = filterSetsByDateRange(recentSets, 60, referenceDate).length;
   const olderSetCount = recentSets.length - recentSetCount;
   const uncertaintyRange = calculateUncertaintyRange(

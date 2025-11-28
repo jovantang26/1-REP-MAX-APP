@@ -15,7 +15,9 @@ import { testedOneRmRepository } from '../storage';
  */
 export function DashboardScreen() {
   const navigate = useNavigate();
-  const { result, loading, error } = useCurrentBaselineOneRm();
+  // TODO (B2.2+): Allow user to select liftType. For now, defaulting to 'bench' for backward compatibility
+  const liftType = 'bench' as const;
+  const { result, loading, error } = useCurrentBaselineOneRm(liftType);
   const [lastTested1Rm, setLastTested1Rm] = React.useState<number | null>(null);
 
   // Load last tested 1RM

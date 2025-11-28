@@ -73,13 +73,20 @@ export function useOneRmHistory() {
       }
 
       // Filter to 90-day window
+      // TODO (B2.2+): Allow user to select liftType. For now, defaulting to 'bench' for backward compatibility
+      const liftType = 'bench' as const;
       const benchSets = filterSetsByDateRange(allBenchSets, 90, now);
       const testedOneRms = filterTestedOneRmsByDateRange(allTestedOneRms, 90, now);
 
+      // GUARDRAIL: Filter by liftType to ensure per-lift independence
+      const benchSetsByLift = benchSets.filter((set) => set.liftType === liftType);
+      const testedOneRmsByLift = testedOneRms.filter((record) => record.liftType === liftType);
+
       // Get current estimate
       const currentEstimate = estimateOneRmWithCategory(
-        benchSets,
-        testedOneRms,
+        liftType,
+        benchSetsByLift,
+        testedOneRmsByLift,
         profile,
         now
       );
@@ -150,9 +157,14 @@ export function useOneRmHistory() {
       
       let progress30d: number | null = null;
       if (sets30DaysAgo.length > 0 || tested30DaysAgo.length > 0) {
+        // GUARDRAIL: Filter by liftType to ensure per-lift independence
+        const sets30DaysAgoByLift = sets30DaysAgo.filter((set) => set.liftType === liftType);
+        const tested30DaysAgoByLift = tested30DaysAgo.filter((record) => record.liftType === liftType);
+        
         const estimate30DaysAgo = estimateOneRmWithCategory(
-          sets30DaysAgo,
-          tested30DaysAgo,
+          liftType,
+          sets30DaysAgoByLift,
+          tested30DaysAgoByLift,
           profile,
           thirtyDaysAgo
         );

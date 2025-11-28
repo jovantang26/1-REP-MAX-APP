@@ -14,6 +14,8 @@ import { useBenchLoggingSession } from '../hooks';
  */
 export function LogBenchScreen() {
   const navigate = useNavigate();
+  // TODO (B2.2+): Allow user to select liftType. For now, defaulting to 'bench' for backward compatibility
+  const liftType = 'bench' as const;
   const {
     sessionSets,
     saving,
@@ -21,7 +23,7 @@ export function LogBenchScreen() {
     removeSetFromSession,
     saveSession,
     clearSession,
-  } = useBenchLoggingSession();
+  } = useBenchLoggingSession(liftType);
   
   const [currentWeight, setCurrentWeight] = useState<string>('');
   const [currentReps, setCurrentReps] = useState<string>('');

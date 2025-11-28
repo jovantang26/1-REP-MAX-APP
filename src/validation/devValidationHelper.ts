@@ -73,22 +73,26 @@ export async function runValidationFromStorage(): Promise<{
       ? tested.testedAt 
       : new Date(tested.testedAt);
 
-    // Get only bench sets that existed before this test
+    // GUARDRAIL: Filter by liftType to ensure per-lift independence
+    const liftType = tested.liftType;
+    
+    // Get only bench sets that existed before this test AND match the liftType
     const setsBeforeTest = allBenchSets.filter(set => {
       const setDate = set.performedAt instanceof Date 
         ? set.performedAt 
         : new Date(set.performedAt);
-      return setDate.getTime() < testDate.getTime();
+      return setDate.getTime() < testDate.getTime() && set.liftType === liftType;
     });
 
-    // Get only tested 1RMs that existed before this test (for calibration)
+    // Get only tested 1RMs that existed before this test (for calibration) AND match the liftType
     const testedBeforeTest = sortedTested.filter(t => {
       const tDate = t.testedAt instanceof Date ? t.testedAt : new Date(t.testedAt);
-      return tDate.getTime() < testDate.getTime();
+      return tDate.getTime() < testDate.getTime() && t.liftType === liftType;
     });
 
-    // Compute estimate using data available at that time
+    // Compute estimate using data available at that time (filtered by liftType)
     const estimate = estimateOneRmWithCategory(
+      liftType,
       setsBeforeTest,
       testedBeforeTest,
       profile,

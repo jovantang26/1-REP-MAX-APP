@@ -1,9 +1,13 @@
-import type { TestedOneRm } from '../domain';
+import type { TestedOneRm, LiftType } from '../domain';
 import { isTestedOneRm } from '../domain';
 import { STORAGE_KEYS, getStorageItem, setStorageItem, serializeDate, deserializeDate } from './storageUtils';
 
 /**
  * TestedOneRmRepository handles storage and retrieval of tested 1RM records.
+ * 
+ * PER-LIFT INDEPENDENCE RULE: All methods that retrieve tested 1RMs should filter
+ * by liftType to ensure per-lift independence. Use getTestedOneRmsByLiftType()
+ * to get tested 1RMs for a specific lift.
  * 
  * Uses localStorage to persist tested 1RM data locally.
  */
@@ -12,6 +16,10 @@ export class TestedOneRmRepository {
 
   /**
    * Retrieves all tested 1RM records from storage.
+   * 
+   * WARNING: This returns tested 1RMs for ALL lift types. For per-lift independence,
+   * use getTestedOneRmsByLiftType() instead.
+   * 
    * @returns Array of tested 1RMs, sorted by date (newest first), or empty array if none exist
    */
   async getTestedOneRms(): Promise<TestedOneRm[]> {
@@ -103,11 +111,53 @@ export class TestedOneRmRepository {
 
   /**
    * Gets the most recent tested 1RM.
+   * 
+   * WARNING: This returns the most recent tested 1RM across ALL lift types.
+   * For per-lift independence, use getLatestTestedOneRmByLiftType() instead.
+   * 
    * @returns The most recent tested 1RM, or null if none exist
    */
   async getLatestTestedOneRm(): Promise<TestedOneRm | null> {
     const allRecords = await this.getTestedOneRms();
     return allRecords.length > 0 ? allRecords[0] : null;
+  }
+
+  /**
+   * Retrieves tested 1RMs for a specific liftType.
+   * 
+   * GUARDRAIL: This method ensures per-lift independence by filtering
+   * by liftType. Use this method when you need tested 1RMs for a specific lift.
+   * 
+   * @param liftType - The lift type to filter by (required for independence)
+   * @returns Array of tested 1RMs for the specified liftType, sorted by date (newest first)
+   */
+  async getTestedOneRmsByLiftType(liftType: LiftType): Promise<TestedOneRm[]> {
+    const allRecords = await this.getTestedOneRms();
+    const filtered = allRecords.filter((record) => record.liftType === liftType);
+    
+    // Sort by date (newest first)
+    filtered.sort((a, b) => {
+      const dateA = a.testedAt instanceof Date ? a.testedAt : deserializeDate(a.testedAt);
+      const dateB = b.testedAt instanceof Date ? b.testedAt : deserializeDate(b.testedAt);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    return filtered;
+  }
+
+  /**
+   * Gets the most recent tested 1RM for a specific liftType.
+   * 
+   * GUARDRAIL: This method ensures per-lift independence by filtering
+   * by liftType. Use this method when you need the most recent tested 1RM
+   * for a specific lift.
+   * 
+   * @param liftType - The lift type to filter by (required for independence)
+   * @returns The most recent tested 1RM for the specified liftType, or null if none exist
+   */
+  async getLatestTestedOneRmByLiftType(liftType: LiftType): Promise<TestedOneRm | null> {
+    const recordsByLift = await this.getTestedOneRmsByLiftType(liftType);
+    return recordsByLift.length > 0 ? recordsByLift[0] : null;
   }
 
   /**

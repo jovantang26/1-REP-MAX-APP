@@ -12,6 +12,7 @@ import { estimateOneRmWithCategory } from '../estimateWithCategory';
 
 describe('estimateBaselineOneRm', () => {
   const baseDate = new Date('2024-01-15');
+  const liftType = 'bench' as const; // All tests use bench for consistency
   
   const mockProfile = createUserProfile(25, 'male', 80);
   const mockFemaleProfile = createUserProfile(25, 'female', 65);
@@ -19,6 +20,7 @@ describe('estimateBaselineOneRm', () => {
   describe('edge cases', () => {
     it('should return zero estimate when no bench sets provided', () => {
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: [],
         testedOneRms: [],
         profile: mockProfile,
@@ -34,6 +36,7 @@ describe('estimateBaselineOneRm', () => {
     it('should handle single bench set', () => {
       const set = createBenchSet(
         '1',
+        liftType,
         new Date('2024-01-10'),
         100,
         5,
@@ -41,6 +44,7 @@ describe('estimateBaselineOneRm', () => {
       );
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: [set],
         testedOneRms: [],
         profile: mockProfile,
@@ -54,6 +58,7 @@ describe('estimateBaselineOneRm', () => {
     it('should filter out sets older than 90 days', () => {
       const oldSet = createBenchSet(
         '1',
+        liftType,
         new Date('2023-10-01'), // More than 90 days ago
         100,
         5,
@@ -61,6 +66,7 @@ describe('estimateBaselineOneRm', () => {
       );
       const recentSet = createBenchSet(
         '2',
+        liftType,
         new Date('2024-01-10'), // Within 90 days
         100,
         5,
@@ -68,6 +74,7 @@ describe('estimateBaselineOneRm', () => {
       );
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: [oldSet, recentSet],
         testedOneRms: [],
         profile: mockProfile,
@@ -81,6 +88,7 @@ describe('estimateBaselineOneRm', () => {
     it('should weight recent sets (last 60 days) more heavily', () => {
       const veryRecentSet = createBenchSet(
         '1',
+        liftType,
         new Date('2024-01-12'), // 3 days ago
         120,
         5,
@@ -88,6 +96,7 @@ describe('estimateBaselineOneRm', () => {
       );
       const olderSet = createBenchSet(
         '2',
+        liftType,
         new Date('2023-12-01'), // 45 days ago (still in 60-day window)
         100,
         5,
@@ -95,6 +104,7 @@ describe('estimateBaselineOneRm', () => {
       );
       const oldSet = createBenchSet(
         '3',
+        liftType,
         new Date('2023-11-20'), // 56 days ago (in 60-90 day window)
         90,
         5,
@@ -102,6 +112,7 @@ describe('estimateBaselineOneRm', () => {
       );
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: [veryRecentSet, olderSet, oldSet],
         testedOneRms: [],
         profile: mockProfile,
@@ -117,6 +128,7 @@ describe('estimateBaselineOneRm', () => {
     it('should apply hard reset when tested 1RM exists', () => {
       const set = createBenchSet(
         '1',
+        liftType,
         new Date('2024-01-10'),
         100,
         5,
@@ -124,11 +136,13 @@ describe('estimateBaselineOneRm', () => {
       );
       const tested1Rm = createTestedOneRm(
         'test1',
+        liftType,
         new Date('2024-01-12'),
         130
       );
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: [set],
         testedOneRms: [tested1Rm],
         profile: mockProfile,
@@ -142,6 +156,7 @@ describe('estimateBaselineOneRm', () => {
     it('should apply stronger reset for very recent tested 1RM', () => {
       const set = createBenchSet(
         '1',
+        liftType,
         new Date('2024-01-10'),
         100,
         5,
@@ -149,16 +164,19 @@ describe('estimateBaselineOneRm', () => {
       );
       const veryRecentTested = createTestedOneRm(
         'test1',
+        liftType,
         new Date('2024-01-14'), // 1 day ago
         130
       );
       const olderTested = createTestedOneRm(
         'test2',
+        liftType,
         new Date('2023-12-01'), // 45 days ago
         125
       );
 
       const resultRecent = estimateBaselineOneRm({
+        liftType,
         benchSets: [set],
         testedOneRms: [veryRecentTested],
         profile: mockProfile,
@@ -166,6 +184,7 @@ describe('estimateBaselineOneRm', () => {
       });
 
       const resultOlder = estimateBaselineOneRm({
+        liftType,
         benchSets: [set],
         testedOneRms: [olderTested],
         profile: mockProfile,
@@ -180,12 +199,13 @@ describe('estimateBaselineOneRm', () => {
   describe('personalization', () => {
     it('should use calibration factor when tested 1RM exists', () => {
       const sets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
-        createBenchSet('2', new Date('2024-01-12'), 105, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', liftType, new Date('2024-01-12'), 105, 5, 0),
       ];
-      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-08'), 120);
+      const tested1Rm = createTestedOneRm('test1', liftType, new Date('2024-01-08'), 120);
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [tested1Rm],
         profile: mockProfile,
@@ -197,11 +217,12 @@ describe('estimateBaselineOneRm', () => {
 
     it('should work without tested 1RM (no calibration)', () => {
       const sets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
-        createBenchSet('2', new Date('2024-01-12'), 105, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', liftType, new Date('2024-01-12'), 105, 5, 0),
       ];
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [],
         profile: mockProfile,
@@ -215,15 +236,16 @@ describe('estimateBaselineOneRm', () => {
   describe('confidence and uncertainty', () => {
     it('should have higher confidence with more recent sets', () => {
       const fewSets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
       ];
       const manySets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
-        createBenchSet('2', new Date('2024-01-12'), 105, 5, 0),
-        createBenchSet('3', new Date('2024-01-14'), 110, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', liftType, new Date('2024-01-12'), 105, 5, 0),
+        createBenchSet('3', liftType, new Date('2024-01-14'), 110, 5, 0),
       ];
 
       const resultFew = estimateBaselineOneRm({
+        liftType,
         benchSets: fewSets,
         testedOneRms: [],
         profile: mockProfile,
@@ -231,6 +253,7 @@ describe('estimateBaselineOneRm', () => {
       });
 
       const resultMany = estimateBaselineOneRm({
+        liftType,
         benchSets: manySets,
         testedOneRms: [],
         profile: mockProfile,
@@ -242,11 +265,12 @@ describe('estimateBaselineOneRm', () => {
 
     it('should have higher confidence when tested 1RM exists', () => {
       const sets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
       ];
-      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-08'), 120);
+      const tested1Rm = createTestedOneRm('test1', liftType, new Date('2024-01-08'), 120);
 
       const resultNoTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [],
         profile: mockProfile,
@@ -254,6 +278,7 @@ describe('estimateBaselineOneRm', () => {
       });
 
       const resultWithTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [tested1Rm],
         profile: mockProfile,
@@ -267,14 +292,15 @@ describe('estimateBaselineOneRm', () => {
 
 describe('estimateOneRmWithCategory', () => {
   const baseDate = new Date('2024-01-15');
+  const liftType = 'bench' as const;
   
   it('should return strength category for male user', () => {
     const profile = createUserProfile(25, 'male', 80);
     const sets = [
-      createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+      createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
     ];
 
-    const result = estimateOneRmWithCategory(sets, [], profile, baseDate);
+    const result = estimateOneRmWithCategory(liftType, sets, [], profile, baseDate);
 
     expect(result.strengthCategory).toBeDefined();
     expect(result.strengthCategory.category).toMatch(/novice|intermediate|advanced|elite/);
@@ -284,10 +310,10 @@ describe('estimateOneRmWithCategory', () => {
   it('should return strength category for female user with different thresholds', () => {
     const profile = createUserProfile(25, 'female', 65);
     const sets = [
-      createBenchSet('1', new Date('2024-01-10'), 50, 5, 0),
+      createBenchSet('1', liftType, new Date('2024-01-10'), 50, 5, 0),
     ];
 
-    const result = estimateOneRmWithCategory(sets, [], profile, baseDate);
+    const result = estimateOneRmWithCategory(liftType, sets, [], profile, baseDate);
 
     expect(result.strengthCategory).toBeDefined();
     expect(result.strengthCategory.category).toMatch(/novice|intermediate|advanced|elite/);
@@ -297,11 +323,11 @@ describe('estimateOneRmWithCategory', () => {
     const lightProfile = createUserProfile(25, 'male', 70);
     const heavyProfile = createUserProfile(25, 'male', 100);
     const sets = [
-      createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+      createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
     ];
 
-    const resultLight = estimateOneRmWithCategory(sets, [], lightProfile, baseDate);
-    const resultHeavy = estimateOneRmWithCategory(sets, [], heavyProfile, baseDate);
+    const resultLight = estimateOneRmWithCategory(liftType, sets, [], lightProfile, baseDate);
+    const resultHeavy = estimateOneRmWithCategory(liftType, sets, [], heavyProfile, baseDate);
 
     // Same 1RM but different bodyweights should give different ratios
     expect(resultLight.strengthCategory.ratio).toBeGreaterThan(resultHeavy.strengthCategory.ratio);
@@ -310,19 +336,21 @@ describe('estimateOneRmWithCategory', () => {
 
 describe('estimate directionality', () => {
   const baseDate = new Date('2024-01-15');
+  const liftType = 'bench' as const;
   const mockProfile = createUserProfile(25, 'male', 80);
 
   describe('weight progression', () => {
     it('should increase estimate when sets get heavier', () => {
       const lighterSets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
       ];
       const heavierSets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
-        createBenchSet('2', new Date('2024-01-12'), 110, 5, 0), // Heavier weight
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', liftType, new Date('2024-01-12'), 110, 5, 0), // Heavier weight
       ];
 
       const resultLighter = estimateBaselineOneRm({
+        liftType,
         benchSets: lighterSets,
         testedOneRms: [],
         profile: mockProfile,
@@ -330,6 +358,7 @@ describe('estimate directionality', () => {
       });
 
       const resultHeavier = estimateBaselineOneRm({
+        liftType,
         benchSets: heavierSets,
         testedOneRms: [],
         profile: mockProfile,
@@ -341,13 +370,14 @@ describe('estimate directionality', () => {
 
     it('should increase estimate when same weight is lifted for more reps', () => {
       const fewerReps = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 3, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 3, 0),
       ];
       const moreReps = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0), // More reps
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0), // More reps
       ];
 
       const resultFewer = estimateBaselineOneRm({
+        liftType,
         benchSets: fewerReps,
         testedOneRms: [],
         profile: mockProfile,
@@ -355,6 +385,7 @@ describe('estimate directionality', () => {
       });
 
       const resultMore = estimateBaselineOneRm({
+        liftType,
         benchSets: moreReps,
         testedOneRms: [],
         profile: mockProfile,
@@ -372,13 +403,14 @@ describe('estimate directionality', () => {
       // So 5 reps with 3 RIR = effective 8 reps → higher 1RM
       // And 5 reps with 0 RIR = effective 5 reps → lower 1RM
       const lowerRir = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0), // 0 RIR (to failure) = 5 effective reps
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0), // 0 RIR (to failure) = 5 effective reps
       ];
       const higherRir = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 3), // 3 RIR = 8 effective reps
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 3), // 3 RIR = 8 effective reps
       ];
 
       const resultLowerRir = estimateBaselineOneRm({
+        liftType,
         benchSets: lowerRir,
         testedOneRms: [],
         profile: mockProfile,
@@ -386,6 +418,7 @@ describe('estimate directionality', () => {
       });
 
       const resultHigherRir = estimateBaselineOneRm({
+        liftType,
         benchSets: higherRir,
         testedOneRms: [],
         profile: mockProfile,
@@ -400,11 +433,12 @@ describe('estimate directionality', () => {
   describe('tested 1RM impact', () => {
     it('should move estimate toward new tested 1RM when recorded', () => {
       const sets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
       ];
 
       // Estimate without tested 1RM
       const resultNoTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [],
         profile: mockProfile,
@@ -412,8 +446,9 @@ describe('estimate directionality', () => {
       });
 
       // Estimate with tested 1RM higher than current estimate
-      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-14'), 130);
+      const tested1Rm = createTestedOneRm('test1', liftType, new Date('2024-01-14'), 130);
       const resultWithTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [tested1Rm],
         profile: mockProfile,
@@ -426,11 +461,12 @@ describe('estimate directionality', () => {
 
     it('should move estimate toward lower tested 1RM when recorded', () => {
       const sets = [
-        createBenchSet('1', new Date('2024-01-10'), 120, 5, 0), // Higher weight
+        createBenchSet('1', liftType, new Date('2024-01-10'), 120, 5, 0), // Higher weight
       ];
 
       // Estimate without tested 1RM
       const resultNoTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [],
         profile: mockProfile,
@@ -438,8 +474,9 @@ describe('estimate directionality', () => {
       });
 
       // Estimate with tested 1RM lower than current estimate
-      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-14'), 100);
+      const tested1Rm = createTestedOneRm('test1', liftType, new Date('2024-01-14'), 100);
       const resultWithTested = estimateBaselineOneRm({
+        liftType,
         benchSets: sets,
         testedOneRms: [tested1Rm],
         profile: mockProfile,
@@ -454,11 +491,12 @@ describe('estimate directionality', () => {
   describe('few sets scenarios', () => {
     it('should handle 2-3 sets correctly', () => {
       const fewSets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
-        createBenchSet('2', new Date('2024-01-12'), 105, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('2', liftType, new Date('2024-01-12'), 105, 5, 0),
       ];
 
       const result = estimateBaselineOneRm({
+        liftType,
         benchSets: fewSets,
         testedOneRms: [],
         profile: mockProfile,
@@ -472,11 +510,12 @@ describe('estimate directionality', () => {
 
     it('should have higher confidence with tested 1RM even with few sets', () => {
       const fewSets = [
-        createBenchSet('1', new Date('2024-01-10'), 100, 5, 0),
+        createBenchSet('1', liftType, new Date('2024-01-10'), 100, 5, 0),
       ];
-      const tested1Rm = createTestedOneRm('test1', new Date('2024-01-12'), 120);
+      const tested1Rm = createTestedOneRm('test1', liftType, new Date('2024-01-12'), 120);
 
       const resultNoTested = estimateBaselineOneRm({
+        liftType,
         benchSets: fewSets,
         testedOneRms: [],
         profile: mockProfile,
@@ -484,6 +523,7 @@ describe('estimate directionality', () => {
       });
 
       const resultWithTested = estimateBaselineOneRm({
+        liftType,
         benchSets: fewSets,
         testedOneRms: [tested1Rm],
         profile: mockProfile,
