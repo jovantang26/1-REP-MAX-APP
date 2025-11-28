@@ -36,12 +36,12 @@ export function useBenchLoggingSession(liftType: LiftType) {
     weight: number,
     reps: number,
     rir: number,
-    performedAt: Date = new Date()
+    timestamp: Date = new Date()
   ) => {
     try {
       const setId = `set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       // GUARDRAIL: liftType is required and ensures per-lift independence
-      const newSet = createBenchSet(setId, liftType, performedAt, weight, reps, rir);
+      const newSet = createBenchSet(setId, liftType, timestamp, weight, reps, rir);
       
       setSessionSets((prev) => [...prev, newSet]);
       setError(null);

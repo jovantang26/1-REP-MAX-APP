@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { estimateOneRmWithCategory } from '../estimation';
 import { filterSetsByDateRange, filterTestedOneRmsByDateRange } from '../estimation';
 import { profileRepository, benchSetRepository, testedOneRmRepository } from '../storage';
+import type { LiftType } from '../domain';
 
 /**
  * History data point for a single day
@@ -27,13 +28,16 @@ export interface HistoryStats {
 /**
  * Hook for getting 90-day history data for the History screen.
  * 
- * Returns:
- * - Array of daily data points (baseline estimates + tested 1RMs)
- * - Statistics (current, best, progress, total sessions)
+ * B2.3.3: Updated to accept liftType parameter for per-lift filtering.
  * 
+ * Returns:
+ * - Array of daily data points (baseline estimates + tested 1RMs) for the specified lift
+ * - Statistics (current, best, progress, total sessions) for the specified lift
+ * 
+ * @param liftType - Type of lift to get history for (bench, squat, or deadlift) - REQUIRED
  * @returns Object with history data, stats, loading state, and refresh function
  */
-export function useOneRmHistory() {
+export function useOneRmHistory(liftType: LiftType = 'bench') {
   const [dataPoints, setDataPoints] = useState<HistoryDataPoint[]>([]);
   const [stats, setStats] = useState<HistoryStats>({
     current1Rm: null,
@@ -73,8 +77,7 @@ export function useOneRmHistory() {
       }
 
       // Filter to 90-day window
-      // TODO (B2.2+): Allow user to select liftType. For now, defaulting to 'bench' for backward compatibility
-      const liftType = 'bench' as const;
+      // B2.3.3: liftType is now a parameter, ensuring per-lift independence
       const benchSets = filterSetsByDateRange(allBenchSets, 90, now);
       const testedOneRms = filterTestedOneRmsByDateRange(allTestedOneRms, 90, now);
 
@@ -202,9 +205,9 @@ export function useOneRmHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [liftType]);
 
-  // Load on mount
+  // Load on mount and when liftType changes
   useEffect(() => {
     refresh();
   }, [refresh]);
