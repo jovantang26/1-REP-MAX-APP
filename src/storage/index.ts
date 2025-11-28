@@ -46,3 +46,10 @@ export {
   migrateTestedOneRms,
 } from './migration';
 
+// B2.6.2 - Debug helpers (dev mode only)
+export {
+  logStorageState,
+  logLiftCounts,
+  clearAllStorage,
+} from './debugHelpers';
+

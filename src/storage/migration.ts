@@ -1,7 +1,7 @@
 /**
  * Data migration utilities for upgrading from bench-only to multi-lift format.
  * 
- * B2.2.3 MIGRATION PLAN:
+ * B2.2.3 & B2.6.1 - MIGRATION PLAN:
  * 
  * This module handles migration of existing data from the old bench-only format
  * to the new multi-lift format. The migration:
@@ -12,6 +12,14 @@
  * 4. Converts testedAt → timestamp for TestedOneRms
  * 5. Persists updated entries
  * 6. Marks migration as completed
+ * 
+ * SAFETY & IDEMPOTENCE:
+ * - This migration runs once on app startup
+ * - Idempotent: safe to run multiple times (checks completion flag first)
+ * - Non-destructive: preserves all existing data
+ * - Validates migrated data before saving
+ * - Skips already-migrated entries
+ * - Does not block app startup if migration fails
  * 
  * This migration runs once on app startup and is idempotent (safe to run multiple times).
  */
