@@ -1,10 +1,13 @@
 import type { LiftType } from './LiftType';
 
 /**
- * BenchSet represents a single set of a lift performed by the user.
+ * TrainingSet represents a single set of a lift performed by the user.
  * 
- * IMPORTANT: This model is lift-agnostic. The liftType field determines
- * which lift this set belongs to. All estimation and storage logic must
+ * B2.2.1: TrainingSet replaces BenchSet everywhere. BenchSet is maintained
+ * as a legacy alias for backward compatibility during migration.
+ * 
+ * IMPORTANT: This model is lift-agnostic. The liftType field is MANDATORY and
+ * determines which lift this set belongs to. All estimation and storage logic must
  * filter by liftType to ensure per-lift independence.
  * 
  * RIR (Reps in Reserve) is a subjective measure of how many more reps the user
@@ -22,15 +25,15 @@ import type { LiftType } from './LiftType';
  * - Strength category (calculated independently per liftType)
  */
 
-export interface BenchSet {
+export interface TrainingSet {
   /** Unique identifier for this set */
   id: string;
   
-  /** Type of lift performed (bench, squat, or deadlift) */
+  /** Type of lift performed (bench, squat, or deadlift) - MANDATORY */
   liftType: LiftType;
   
-  /** Date and time when the set was performed (ISO string or Date) */
-  performedAt: Date | string;
+  /** Timestamp when the set was performed (ISO string or Date) */
+  timestamp: Date | string;
   
   /** Weight lifted in kilograms */
   weight: number;
@@ -43,29 +46,29 @@ export interface BenchSet {
 }
 
 /**
- * Creates a new BenchSet with validation.
+ * Creates a new TrainingSet with validation.
  * 
  * GUARDRAIL: liftType is required and must be a valid LiftType.
  * This ensures all sets are properly categorized and can be filtered
- * independently by lift type.
+ * independently by lift type. No default liftType is assumed.
  * 
  * @param id - Unique identifier for the set
- * @param liftType - Type of lift (bench, squat, or deadlift)
- * @param performedAt - Date and time when the set was performed
+ * @param liftType - Type of lift (bench, squat, or deadlift) - MANDATORY
+ * @param timestamp - Timestamp when the set was performed
  * @param weight - Weight lifted in kilograms (must be positive)
  * @param reps - Number of repetitions (must be positive)
  * @param rir - Reps in Reserve (must be non-negative integer)
- * @returns A validated BenchSet object
+ * @returns A validated TrainingSet object
  * @throws Error if validation fails
  */
-export function createBenchSet(
+export function createTrainingSet(
   id: string,
   liftType: LiftType,
-  performedAt: Date | string,
+  timestamp: Date | string,
   weight: number,
   reps: number,
   rir: number
-): BenchSet {
+): TrainingSet {
   if (!id || id.trim().length === 0) {
     throw new Error('Set ID must be provided');
   }
@@ -74,8 +77,8 @@ export function createBenchSet(
     throw new Error('liftType must be "bench", "squat", or "deadlift"');
   }
   
-  if (!performedAt) {
-    throw new Error('PerformedAt date must be provided');
+  if (!timestamp) {
+    throw new Error('Timestamp must be provided');
   }
   
   if (typeof weight !== 'number' || isNaN(weight) || !isFinite(weight) || weight <= 0) {
@@ -93,7 +96,7 @@ export function createBenchSet(
   return {
     id: id.trim(),
     liftType,
-    performedAt,
+    timestamp,
     weight,
     reps,
     rir,
@@ -101,11 +104,11 @@ export function createBenchSet(
 }
 
 /**
- * Type guard to check if an object is a valid BenchSet
+ * Type guard to check if an object is a valid TrainingSet
  * 
  * GUARDRAIL: Validates that liftType is present and valid.
  */
-export function isBenchSet(obj: unknown): obj is BenchSet {
+export function isTrainingSet(obj: unknown): obj is TrainingSet {
   if (typeof obj !== 'object' || obj === null) {
     return false;
   }
@@ -117,7 +120,7 @@ export function isBenchSet(obj: unknown): obj is BenchSet {
     set.id.length > 0 &&
     typeof set.liftType === 'string' &&
     (set.liftType === 'bench' || set.liftType === 'squat' || set.liftType === 'deadlift') &&
-    (set.performedAt instanceof Date || typeof set.performedAt === 'string') &&
+    (set.timestamp instanceof Date || typeof set.timestamp === 'string') &&
     typeof set.weight === 'number' &&
     set.weight > 0 &&
     typeof set.reps === 'number' &&
@@ -128,4 +131,10 @@ export function isBenchSet(obj: unknown): obj is BenchSet {
     set.rir >= 0
   );
 }
+
+/**
+ * NOTE: BenchSet is maintained as a separate file (BenchSet.ts) for backward compatibility.
+ * BenchSet uses 'performedAt' instead of 'timestamp' for legacy support.
+ * All new code should use TrainingSet.
+ */
 

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserProfile } from '../hooks';
-import { createUserProfile } from '../domain';
+import { createUserProfile, type LiftType } from '../domain';
 import { createTestedOneRm } from '../domain';
 import { testedOneRmRepository } from '../storage';
 
@@ -63,8 +63,14 @@ export function OnboardingScreen() {
           const testedDate = new Date();
           testedDate.setDate(testedDate.getDate() - 30);
           
+          // TODO (B2.2+): Allow user to select liftType during onboarding
+          // For now, defaulting to "bench" to maintain backward compatibility
+          // FUTURE-PROOFING: liftType is now required, so we must provide it
+          const liftType: LiftType = 'bench';
+          
           const tested1Rm = createTestedOneRm(
             `tested_${Date.now()}`,
+            liftType,
             testedDate,
             weight
           );

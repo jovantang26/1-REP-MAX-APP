@@ -1,9 +1,24 @@
-import type { OneRmEstimate } from '../domain';
+import type { OneRmEstimate, LiftType } from '../domain';
 import { isOneRmEstimate } from '../domain';
 import { STORAGE_KEYS, getStorageItem, setStorageItem, serializeDate, deserializeDate } from './storageUtils';
 
 /**
  * OneRmEstimateRepository handles storage and retrieval of 1RM estimates.
+ * 
+ * STORAGE SCHEMA (B2.2.2):
+ * - Uses shared collection (ONE_RM_ESTIMATES) for ALL lift types
+ * - Do NOT create per-lift storage keys
+ * - All writes must include liftType field
+ * - Filtering by liftType happens in logic, NOT in storage
+ * 
+ * PER-LIFT INDEPENDENCE RULE: All methods that retrieve estimates should filter
+ * by liftType to ensure per-lift independence. Use getEstimatesByLiftType()
+ * to get estimates for a specific lift.
+ * 
+ * GUARDRAILS:
+ * - No assumptions of bench-only logic
+ * - Every write must include liftType
+ * - Filtering always happens via liftType in application logic
  * 
  * Uses localStorage to persist 1RM estimate data locally.
  */
@@ -12,6 +27,10 @@ export class OneRmEstimateRepository {
 
   /**
    * Retrieves all 1RM estimates from storage.
+   * 
+   * WARNING: This returns estimates for ALL lift types. For per-lift independence,
+   * use getEstimatesByLiftType() instead.
+   * 
    * @returns Array of 1RM estimates, sorted by date (newest first), or empty array if none exist
    */
   async getEstimates(): Promise<OneRmEstimate[]> {
@@ -126,11 +145,53 @@ export class OneRmEstimateRepository {
 
   /**
    * Gets the most recent 1RM estimate.
+   * 
+   * WARNING: This returns the most recent estimate across ALL lift types.
+   * For per-lift independence, use getLatestEstimateByLiftType() instead.
+   * 
    * @returns The most recent 1RM estimate, or null if none exist
    */
   async getLatestEstimate(): Promise<OneRmEstimate | null> {
     const allEstimates = await this.getEstimates();
     return allEstimates.length > 0 ? allEstimates[0] : null;
+  }
+
+  /**
+   * Retrieves 1RM estimates for a specific liftType.
+   * 
+   * GUARDRAIL: This method ensures per-lift independence by filtering
+   * by liftType. Use this method when you need estimates for a specific lift.
+   * 
+   * @param liftType - The lift type to filter by (required for independence)
+   * @returns Array of 1RM estimates for the specified liftType, sorted by date (newest first)
+   */
+  async getEstimatesByLiftType(liftType: LiftType): Promise<OneRmEstimate[]> {
+    const allEstimates = await this.getEstimates();
+    const filtered = allEstimates.filter((estimate) => estimate.liftType === liftType);
+    
+    // Sort by date (newest first)
+    filtered.sort((a, b) => {
+      const dateA = a.date instanceof Date ? a.date : deserializeDate(a.date);
+      const dateB = b.date instanceof Date ? b.date : deserializeDate(b.date);
+      return dateB.getTime() - dateA.getTime();
+    });
+    
+    return filtered;
+  }
+
+  /**
+   * Gets the most recent 1RM estimate for a specific liftType.
+   * 
+   * GUARDRAIL: This method ensures per-lift independence by filtering
+   * by liftType. Use this method when you need the most recent estimate
+   * for a specific lift.
+   * 
+   * @param liftType - The lift type to filter by (required for independence)
+   * @returns The most recent 1RM estimate for the specified liftType, or null if none exist
+   */
+  async getLatestEstimateByLiftType(liftType: LiftType): Promise<OneRmEstimate | null> {
+    const estimatesByLift = await this.getEstimatesByLiftType(liftType);
+    return estimatesByLift.length > 0 ? estimatesByLift[0] : null;
   }
 
   /**

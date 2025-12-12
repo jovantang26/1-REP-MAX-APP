@@ -32,11 +32,11 @@ export function applyHardReset(
     return estimated1Rm;
   }
   
-  const testedAt = mostRecentTested1Rm.testedAt instanceof Date 
-    ? mostRecentTested1Rm.testedAt 
-    : new Date(mostRecentTested1Rm.testedAt);
+  const timestamp = mostRecentTested1Rm.timestamp instanceof Date 
+    ? mostRecentTested1Rm.timestamp 
+    : new Date(mostRecentTested1Rm.timestamp);
   
-  const daysAgo = (referenceDate.getTime() - testedAt.getTime()) / (1000 * 60 * 60 * 24);
+  const daysAgo = (referenceDate.getTime() - timestamp.getTime()) / (1000 * 60 * 60 * 24);
   
   // If tested 1RM is older than 90 days, don't apply reset
   if (daysAgo > 90) {

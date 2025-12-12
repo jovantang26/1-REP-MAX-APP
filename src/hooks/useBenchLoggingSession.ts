@@ -1,36 +1,47 @@
 import { useState, useCallback } from 'react';
-import type { BenchSet } from '../domain';
+import type { BenchSet, LiftType } from '../domain';
 import { createBenchSet } from '../domain';
 import { benchSetRepository } from '../storage';
 
 /**
- * Hook for managing bench logging sessions.
+ * Hook for managing lift logging sessions.
+ * 
+ * PER-LIFT INDEPENDENCE RULE: liftType is REQUIRED. All sets created through
+ * this hook are tagged with the specified liftType to ensure per-lift independence.
+ * 
+ * FUTURE-PROOFING PRINCIPLE: This hook accepts liftType as a parameter.
+ * All new hooks must accept liftType to support multi-lift functionality.
  * 
  * Provides:
  * - Session state (current sets being logged)
- * - Add set to session
+ * - Add set to session (with liftType)
  * - Save session to storage
  * - Clear session
  * 
+ * @param liftType - Type of lift being logged (bench, squat, or deadlift) - REQUIRED
  * @returns Object with session state and control functions
  */
-export function useBenchLoggingSession() {
+export function useBenchLoggingSession(liftType: LiftType) {
   const [sessionSets, setSessionSets] = useState<BenchSet[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
   const [error, setError] = useState<Error | null>(null);
 
   /**
    * Adds a set to the current session (in memory only, not persisted yet).
+   * 
+   * GUARDRAIL: The set is automatically tagged with the liftType from the hook
+   * to ensure per-lift independence.
    */
   const addSetToSession = useCallback((
     weight: number,
     reps: number,
     rir: number,
-    performedAt: Date = new Date()
+    timestamp: Date = new Date()
   ) => {
     try {
       const setId = `set_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      const newSet = createBenchSet(setId, performedAt, weight, reps, rir);
+      // GUARDRAIL: liftType is required and ensures per-lift independence
+      const newSet = createBenchSet(setId, liftType, timestamp, weight, reps, rir);
       
       setSessionSets((prev) => [...prev, newSet]);
       setError(null);
@@ -40,7 +51,7 @@ export function useBenchLoggingSession() {
       setError(error);
       throw error;
     }
-  }, []);
+  }, [liftType]);
 
   /**
    * Removes a set from the current session by ID.

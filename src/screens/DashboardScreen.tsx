@@ -1,47 +1,72 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrentBaselineOneRm } from '../hooks';
+import { useCurrentBaselineOneRm, useUserProfile } from '../hooks';
 import { testedOneRmRepository } from '../storage';
+import type { LiftType } from '../domain';
+import { LIFT_DISPLAY_NAMES } from '../domain';
+import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
+import { calculateOneRmRatio } from '../domain';
 
 /**
- * Home / Dashboard Screen
+ * Home / Dashboard Screen (B2.3.2 - Multi-Lift Dashboard)
  * 
- * Displays:
- * - Current baseline 1RM
- * - Uncertainty range
- * - Strength category
- * - Last tested 1RM
- * - Summary text about recent sets
+ * Displays 3 cards (one for each lift):
+ * - Bench Card
+ * - Squat Card
+ * - Deadlift Card
+ * 
+ * Each card shows:
+ * - Baseline 1RM ± uncertainty
+ * - Strength category (e.g., "Intermediate")
+ * - Ratio (e.g., "1.7× BW")
+ * - Last tested date (if any)
  */
 export function DashboardScreen() {
   const navigate = useNavigate();
-  const { result, loading, error } = useCurrentBaselineOneRm();
-  const [lastTested1Rm, setLastTested1Rm] = React.useState<number | null>(null);
+  const { profile } = useUserProfile();
+  
+  // Load data for all three lifts
+  const benchResult = useCurrentBaselineOneRm('bench');
+  const squatResult = useCurrentBaselineOneRm('squat');
+  const deadliftResult = useCurrentBaselineOneRm('deadlift');
+  
+  const [lastTested1Rms, setLastTested1Rms] = React.useState<Record<LiftType, { weight: number; date: Date } | null>>({
+    bench: null,
+    squat: null,
+    deadlift: null,
+  });
 
-  // Load last tested 1RM
+  // Load last tested 1RM for each lift
   React.useEffect(() => {
-    testedOneRmRepository.getLatestTestedOneRm().then((tested) => {
-      if (tested) {
-        setLastTested1Rm(tested.weight);
+    const loadLastTested = async () => {
+      const lifts: LiftType[] = ['bench', 'squat', 'deadlift'];
+      const results: Record<LiftType, { weight: number; date: Date } | null> = {
+        bench: null,
+        squat: null,
+        deadlift: null,
+      };
+      
+      for (const liftType of lifts) {
+        const tested = await testedOneRmRepository.getLatestTestedOneRmByLiftType(liftType);
+        if (tested) {
+          const timestamp = tested.timestamp instanceof Date 
+            ? tested.timestamp 
+            : new Date(tested.timestamp);
+          results[liftType] = { weight: tested.weight, date: timestamp };
+        }
       }
-    });
+      
+      setLastTested1Rms(results);
+    };
+    loadLastTested();
   }, []);
 
-  if (loading) {
-    return (
-      <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
-        <h1>Dashboard</h1>
-        <p>Loading...</p>
-      </div>
-    );
-  }
-
-  if (error || !result) {
+  if (!profile) {
     return (
       <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
         <h1>Dashboard</h1>
         <p style={{ color: '#dc3545' }}>
-          {error ? `Error: ${error.message}` : 'No profile found. Please complete onboarding.'}
+          No profile found. Please complete onboarding.
         </p>
         <button
           onClick={() => navigate('/onboarding')}
@@ -62,52 +87,134 @@ export function DashboardScreen() {
     );
   }
 
-  const baseline1Rm = result.baselineOneRm.toFixed(1);
-  const uncertaintyLow = result.uncertaintyRange.low.toFixed(1);
-  const uncertaintyHigh = result.uncertaintyRange.high.toFixed(1);
-  const strengthCategory = result.strengthCategory.category.charAt(0).toUpperCase() + 
-    result.strengthCategory.category.slice(1);
+  // Helper function to render a lift card
+  const renderLiftCard = (
+    liftType: LiftType,
+    result: ReturnType<typeof useCurrentBaselineOneRm>,
+    lastTested: { weight: number; date: Date } | null
+  ) => {
+    const isLoading = result.loading;
+    const hasError = result.error !== null;
+    const hasResult = result.result !== null;
+
+    // B2.5.3 - Dashboard Category Display Rules
+    // Each lift card must show:
+    // - Category label (e.g. "Intermediate")
+    // - Ratio value (e.g. "1.55× BW")
+    // - Optional microcopy: "Advanced for your bodyweight"
+    let strengthCategoryLabel: string | null = null;
+    let ratio: string | null = null;
+    let ratioValue: number | null = null;
+    
+    if (hasResult && profile) {
+      try {
+        // Use universal getStrengthCategory function (B2.5.2)
+        const gender = profile.gender.toLowerCase().trim() as "male" | "female";
+        const categoryLabel = getStrengthCategory(
+          liftType,
+          gender === "male" || gender === "female" ? gender : "male", // Default to male if invalid
+          result.result!.baselineOneRm,
+          profile.bodyweight
+        );
+        
+        // Capitalize first letter for display
+        strengthCategoryLabel = categoryLabel.charAt(0).toUpperCase() + categoryLabel.slice(1);
+        
+        // Calculate ratio for display
+        ratioValue = calculateOneRmRatio(result.result!.baselineOneRm, profile.bodyweight);
+        if (ratioValue !== null) {
+          ratio = ratioValue.toFixed(2);
+        }
+      } catch (error) {
+        console.error(`Failed to calculate strength category for ${liftType}:`, error);
+      }
+    }
+
+    return (
+      <div
+        key={liftType}
+        style={{
+          backgroundColor: '#f5f5f5',
+          padding: '20px',
+          borderRadius: '8px',
+          marginBottom: '20px',
+          border: '2px solid #ddd',
+        }}
+      >
+        <h2 style={{ marginTop: 0, marginBottom: '15px', color: '#333' }}>
+          {LIFT_DISPLAY_NAMES[liftType]}
+        </h2>
+
+        {isLoading && (
+          <div style={{ color: '#666', fontStyle: 'italic' }}>Loading...</div>
+        )}
+
+        {hasError && (
+          <div style={{ color: '#dc3545' }}>
+            Error: {result.error?.message || 'Failed to load data'}
+          </div>
+        )}
+
+        {!isLoading && !hasError && !hasResult && (
+          <div style={{ color: '#666' }}>
+            No data available. Log some sets to see your 1RM estimate.
+          </div>
+        )}
+
+        {!isLoading && !hasError && hasResult && (
+          <>
+            <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px', color: '#007bff' }}>
+              {result.result!.baselineOneRm.toFixed(1)} kg
+            </div>
+            
+            <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
+              Uncertainty: {result.result!.uncertaintyRange.low.toFixed(1)} - {result.result!.uncertaintyRange.high.toFixed(1)} kg
+            </div>
+            
+            <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
+              Confidence: {(result.result!.confidenceLevel * 100).toFixed(0)}%
+            </div>
+
+            {/* B2.5.3 - Category Display: Category label, ratio value, and microcopy */}
+            {strengthCategoryLabel && ratio && (
+              <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
+                <div style={{ marginBottom: '4px' }}>
+                  Strength: <strong>{strengthCategoryLabel}</strong> ({ratio}× BW)
+                </div>
+                {/* Optional microcopy: "Advanced for your bodyweight" */}
+                <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
+                  {strengthCategoryLabel} for your bodyweight
+                </div>
+              </div>
+            )}
+
+            {lastTested && (
+              <div style={{ color: '#666', fontSize: '14px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+                Last Tested: <strong>{lastTested.weight.toFixed(1)} kg</strong>
+                <br />
+                <span style={{ fontSize: '12px', color: '#999' }}>
+                  {lastTested.date.toLocaleDateString()}
+                </span>
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Dashboard</h1>
       
-      <div style={{ 
-        backgroundColor: '#f5f5f5', 
-        padding: '20px', 
-        borderRadius: '8px',
-        marginBottom: '20px'
-      }}>
-        <h2 style={{ marginTop: 0 }}>Current Baseline 1RM</h2>
-        <div style={{ fontSize: '36px', fontWeight: 'bold', marginBottom: '10px' }}>
-          {baseline1Rm} kg
-        </div>
-        <div style={{ color: '#666', marginBottom: '10px' }}>
-          Uncertainty: {uncertaintyLow} - {uncertaintyHigh} kg
-        </div>
-        <div style={{ color: '#666', marginBottom: '10px' }}>
-          Confidence: {(result.confidenceLevel * 100).toFixed(0)}%
-        </div>
-        <div style={{ color: '#666' }}>
-          Strength Category: <strong>{strengthCategory}</strong>
-        </div>
+      {/* B2.3.2: 3 vertically stacked cards for each lift */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        {renderLiftCard('bench', benchResult, lastTested1Rms.bench)}
+        {renderLiftCard('squat', squatResult, lastTested1Rms.squat)}
+        {renderLiftCard('deadlift', deadliftResult, lastTested1Rms.deadlift)}
       </div>
 
-      {lastTested1Rm !== null && (
-        <div style={{ 
-          backgroundColor: '#f5f5f5', 
-          padding: '20px', 
-          borderRadius: '8px',
-          marginBottom: '20px'
-        }}>
-          <h3 style={{ marginTop: 0 }}>Last Tested 1RM</h3>
-          <div style={{ fontSize: '24px' }}>
-            {lastTested1Rm.toFixed(1)} kg
-          </div>
-        </div>
-      )}
-
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>
         <button
           onClick={() => navigate('/log-session')}
           style={{
@@ -120,7 +227,7 @@ export function DashboardScreen() {
             cursor: 'pointer',
           }}
         >
-          Log Bench Session
+          Log Training Session
         </button>
         
         <button

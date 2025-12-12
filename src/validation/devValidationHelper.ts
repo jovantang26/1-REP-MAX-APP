@@ -60,8 +60,8 @@ export async function runValidationFromStorage(): Promise<{
 
   // Sort tested 1RMs by date
   const sortedTested = [...allTestedOneRms].sort((a, b) => {
-    const dateA = a.testedAt instanceof Date ? a.testedAt : new Date(a.testedAt);
-    const dateB = b.testedAt instanceof Date ? b.testedAt : new Date(b.testedAt);
+    const dateA = a.timestamp instanceof Date ? a.timestamp : new Date(a.timestamp);
+    const dateB = b.timestamp instanceof Date ? b.timestamp : new Date(b.timestamp);
     return dateA.getTime() - dateB.getTime();
   });
 
@@ -69,26 +69,30 @@ export async function runValidationFromStorage(): Promise<{
 
   // For each tested 1RM, compute what the estimate would have been
   for (const tested of sortedTested) {
-    const testDate = tested.testedAt instanceof Date 
-      ? tested.testedAt 
-      : new Date(tested.testedAt);
+    const testDate = tested.timestamp instanceof Date 
+      ? tested.timestamp 
+      : new Date(tested.timestamp);
 
-    // Get only bench sets that existed before this test
+    // GUARDRAIL: Filter by liftType to ensure per-lift independence
+    const liftType = tested.liftType;
+    
+    // Get only bench sets that existed before this test AND match the liftType
     const setsBeforeTest = allBenchSets.filter(set => {
       const setDate = set.performedAt instanceof Date 
         ? set.performedAt 
         : new Date(set.performedAt);
-      return setDate.getTime() < testDate.getTime();
+      return setDate.getTime() < testDate.getTime() && set.liftType === liftType;
     });
 
-    // Get only tested 1RMs that existed before this test (for calibration)
+    // Get only tested 1RMs that existed before this test (for calibration) AND match the liftType
     const testedBeforeTest = sortedTested.filter(t => {
-      const tDate = t.testedAt instanceof Date ? t.testedAt : new Date(t.testedAt);
-      return tDate.getTime() < testDate.getTime();
+      const tDate = t.timestamp instanceof Date ? t.timestamp : new Date(t.timestamp);
+      return tDate.getTime() < testDate.getTime() && t.liftType === liftType;
     });
 
-    // Compute estimate using data available at that time
+    // Compute estimate using data available at that time (filtered by liftType)
     const estimate = estimateOneRmWithCategory(
+      liftType,
       setsBeforeTest,
       testedBeforeTest,
       profile,

@@ -58,8 +58,19 @@ export function SettingsScreen() {
 
         <button
           onClick={() => {
-            // TODO: Show about information
-            alert('1RM Prediction App (Beta 1)\n\nTrack and predict your bench press 1RM.');
+            alert(
+              '1RM Prediction App (Beta 2.0)\n\n' +
+              'Track and predict your 1RM for multiple lifts:\n' +
+              '• Bench Press\n' +
+              '• Back Squat\n' +
+              '• Deadlift (Conventional)\n\n' +
+              'Features:\n' +
+              '• Per-lift baseline 1RM estimates\n' +
+              '• Strength categories per lift\n' +
+              '• 90-day history tracking\n' +
+              '• Automatic calibration from tested 1RMs\n\n' +
+              'Your data is tracked independently for each lift.'
+            );
           }}
           style={{
             width: '100%',

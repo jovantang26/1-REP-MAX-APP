@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { estimateOneRmWithCategory } from '../estimation';
 import { filterSetsByDateRange, filterTestedOneRmsByDateRange } from '../estimation';
 import { profileRepository, benchSetRepository, testedOneRmRepository } from '../storage';
+import type { LiftType } from '../domain';
 
 /**
  * History data point for a single day
@@ -27,13 +28,16 @@ export interface HistoryStats {
 /**
  * Hook for getting 90-day history data for the History screen.
  * 
- * Returns:
- * - Array of daily data points (baseline estimates + tested 1RMs)
- * - Statistics (current, best, progress, total sessions)
+ * B2.3.3: Updated to accept liftType parameter for per-lift filtering.
  * 
+ * Returns:
+ * - Array of daily data points (baseline estimates + tested 1RMs) for the specified lift
+ * - Statistics (current, best, progress, total sessions) for the specified lift
+ * 
+ * @param liftType - Type of lift to get history for (bench, squat, or deadlift) - REQUIRED
  * @returns Object with history data, stats, loading state, and refresh function
  */
-export function useOneRmHistory() {
+export function useOneRmHistory(liftType: LiftType = 'bench') {
   const [dataPoints, setDataPoints] = useState<HistoryDataPoint[]>([]);
   const [stats, setStats] = useState<HistoryStats>({
     current1Rm: null,
@@ -73,13 +77,19 @@ export function useOneRmHistory() {
       }
 
       // Filter to 90-day window
+      // B2.3.3: liftType is now a parameter, ensuring per-lift independence
       const benchSets = filterSetsByDateRange(allBenchSets, 90, now);
       const testedOneRms = filterTestedOneRmsByDateRange(allTestedOneRms, 90, now);
 
+      // GUARDRAIL: Filter by liftType to ensure per-lift independence
+      const benchSetsByLift = benchSets.filter((set) => set.liftType === liftType);
+      const testedOneRmsByLift = testedOneRms.filter((record) => record.liftType === liftType);
+
       // Get current estimate
       const currentEstimate = estimateOneRmWithCategory(
-        benchSets,
-        testedOneRms,
+        liftType,
+        benchSetsByLift,
+        testedOneRmsByLift,
         profile,
         now
       );
@@ -91,14 +101,14 @@ export function useOneRmHistory() {
 
       // Add points for days with tested 1RMs
       for (const tested of testedOneRms) {
-        const testedAt = tested.testedAt instanceof Date 
-          ? tested.testedAt 
-          : new Date(tested.testedAt);
-        const dateKey = testedAt.toISOString().split('T')[0];
+        const timestamp = tested.timestamp instanceof Date 
+          ? tested.timestamp 
+          : new Date(tested.timestamp);
+        const dateKey = timestamp.toISOString().split('T')[0];
         
         if (!dateMap.has(dateKey)) {
           dateMap.set(dateKey, {
-            date: testedAt,
+            date: timestamp,
             baselineEstimate: null,
             testedOneRm: tested.weight,
             uncertaintyRange: null,
@@ -150,9 +160,14 @@ export function useOneRmHistory() {
       
       let progress30d: number | null = null;
       if (sets30DaysAgo.length > 0 || tested30DaysAgo.length > 0) {
+        // GUARDRAIL: Filter by liftType to ensure per-lift independence
+        const sets30DaysAgoByLift = sets30DaysAgo.filter((set) => set.liftType === liftType);
+        const tested30DaysAgoByLift = tested30DaysAgo.filter((record) => record.liftType === liftType);
+        
         const estimate30DaysAgo = estimateOneRmWithCategory(
-          sets30DaysAgo,
-          tested30DaysAgo,
+          liftType,
+          sets30DaysAgoByLift,
+          tested30DaysAgoByLift,
           profile,
           thirtyDaysAgo
         );
@@ -190,9 +205,9 @@ export function useOneRmHistory() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [liftType]);
 
-  // Load on mount
+  // Load on mount and when liftType changes
   useEffect(() => {
     refresh();
   }, [refresh]);

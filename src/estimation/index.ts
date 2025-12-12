@@ -16,13 +16,23 @@ export {
 export {
   estimate1RmFromSet,
   estimate1RmFromSets,
+  estimateOneRMFromSet, // B2.4.1 - API alias
 } from './repTo1Rm';
+
+// B2.4.1 - Per-lift estimation API
+export {
+  estimateBaselineForLift,
+  estimateOneRMFromSet as estimateOneRMFromSetAPI,
+} from './estimateForLift';
 
 // Date filtering
 export {
   filterSetsByDateRange,
+  filterSetsByLiftTypeAndDateRange,
   filterTestedOneRmsByDateRange,
+  filterTestedOneRmsByLiftTypeAndDateRange,
   getMostRecentTestedOneRm,
+  getMostRecentTestedOneRmByLiftType,
 } from './dateFiltering';
 
 // Weighting
@@ -31,10 +41,12 @@ export {
   calculateWeightedAverage,
 } from './weighting';
 
-// Personalization
+// Personalization / Calibration
 export {
-  calculateCalibrationFactor,
-  applyCalibration,
+  calculateCalibrationFactor, // Legacy
+  applyCalibration, // Legacy - applies factor directly
+  applyCalibrationWithUserCalibration, // B2.4.3 - Per-lift calibration with UserCalibration
+  deriveCalibration, // B2.4.3 - Per-lift calibration derivation
 } from './personalization';
 
 // Hard reset
@@ -52,6 +64,7 @@ export {
 export {
   determineStrengthCategoryForGender,
   getStrengthCategoryForGender,
+  getStrengthCategory, // B2.5.2 - Universal function interface
 } from './strengthCategory';
 
 // High-level estimation with category

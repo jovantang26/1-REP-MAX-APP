@@ -1,6 +1,6 @@
-import type { BenchSet, TestedOneRm, UserProfile, UncertaintyRange } from '../domain';
+import type { BenchSet, TestedOneRm, UserProfile, UncertaintyRange, LiftType } from '../domain';
 import { estimate1RmFromSet, estimate1RmFromSets } from './repTo1Rm';
-import { filterSetsByDateRange, getMostRecentTestedOneRm } from './dateFiltering';
+import { filterSetsByLiftTypeAndDateRange, filterSetsByDateRange, getMostRecentTestedOneRmByLiftType } from './dateFiltering';
 import { calculateWeightedAverage } from './weighting';
 import { calculateCalibrationFactor, applyCalibration } from './personalization';
 import { applyHardReset } from './hardReset';
@@ -8,11 +8,22 @@ import { calculateUncertaintyRange, calculateConfidenceLevel } from './uncertain
 
 /**
  * Parameters for estimating baseline 1RM
+ * 
+ * PER-LIFT INDEPENDENCE RULE: liftType is REQUIRED. All sets and tested 1RMs
+ * will be filtered by liftType to ensure per-lift independence. Each liftType
+ * has its own baseline 1RM, calibration factor, and history trend.
+ * 
+ * GUARDRAIL (B2.2.4):
+ * - No assumptions of bench-only logic
+ * - liftType must always be specified (no default)
+ * - All filtering happens via liftType in application logic
  */
 export interface EstimateBaselineOneRmParams {
-  /** Bench sets to use for estimation */
+  /** Type of lift to estimate (bench, squat, or deadlift) - REQUIRED for independence */
+  liftType: LiftType;
+  /** Bench sets to use for estimation (will be filtered by liftType) */
   benchSets: BenchSet[];
-  /** Tested 1RMs for calibration and hard reset */
+  /** Tested 1RMs for calibration and hard reset (will be filtered by liftType) */
   testedOneRms: TestedOneRm[];
   /** User profile for personalization */
   profile: UserProfile;
@@ -35,24 +46,31 @@ export interface BaselineOneRmEstimate {
 /**
  * Estimates baseline 1RM from bench sets, tested 1RMs, and user profile.
  * 
+ * PER-LIFT INDEPENDENCE RULE: This function filters all sets and tested 1RMs
+ * by liftType to ensure per-lift independence. Each liftType has its own:
+ * - Baseline 1RM (calculated only from sets of that liftType)
+ * - Calibration factor (calculated only from tested 1RMs of that liftType)
+ * - History trend (filtered by liftType)
+ * - Strength category (calculated independently per liftType)
+ * 
  * Algorithm:
- * 1. Filter bench sets to last 90 days
+ * 1. Filter bench sets by liftType AND to last 90 days (GUARDRAIL: ensures independence)
  * 2. Convert each set to 1RM estimate using Epley-style formula with RIR
  * 3. Calculate weighted average (more recent sets weighted higher)
- * 4. Apply calibration factor if tested 1RMs exist
- * 5. Apply hard reset toward most recent tested 1RM if available
+ * 4. Apply calibration factor if tested 1RMs exist (filtered by liftType)
+ * 5. Apply hard reset toward most recent tested 1RM if available (filtered by liftType)
  * 6. Calculate uncertainty range and confidence level
  * 
- * @param params - Estimation parameters
+ * @param params - Estimation parameters (liftType is REQUIRED)
  * @returns Baseline 1RM estimate with uncertainty and confidence
  */
 export function estimateBaselineOneRm(
   params: EstimateBaselineOneRmParams
 ): BaselineOneRmEstimate {
-  const { benchSets, testedOneRms, profile, referenceDate = new Date() } = params;
+  const { liftType, benchSets, testedOneRms, profile, referenceDate = new Date() } = params;
   
-  // Step 1: Filter sets to last 90 days
-  const recentSets = filterSetsByDateRange(benchSets, 90, referenceDate);
+  // GUARDRAIL: Step 1 - Filter sets by liftType AND date range to ensure per-lift independence
+  const recentSets = filterSetsByLiftTypeAndDateRange(benchSets, liftType, 90, referenceDate);
   
   // If no sets available, return default estimate
   if (recentSets.length === 0) {
@@ -63,8 +81,8 @@ export function estimateBaselineOneRm(
     };
   }
   
-  // Step 2: Get most recent tested 1RM first
-  const mostRecentTested1Rm = getMostRecentTestedOneRm(testedOneRms);
+  // GUARDRAIL: Step 2 - Get most recent tested 1RM filtered by liftType to ensure per-lift independence
+  const mostRecentTested1Rm = getMostRecentTestedOneRmByLiftType(testedOneRms, liftType);
   
   // Step 3: Convert each set to 1RM estimate
   const oneRmEstimates = estimate1RmFromSets(recentSets);
@@ -75,10 +93,10 @@ export function estimateBaselineOneRm(
   // Step 5: If we have a tested 1RM that's recent, use it as the primary baseline
   // Only update it if workout data shows clear improvement (>10% higher)
   if (mostRecentTested1Rm !== null) {
-    const testedAt = mostRecentTested1Rm.testedAt instanceof Date 
-      ? mostRecentTested1Rm.testedAt 
-      : new Date(mostRecentTested1Rm.testedAt);
-    const daysAgo = (referenceDate.getTime() - testedAt.getTime()) / (1000 * 60 * 60 * 24);
+    const timestamp = mostRecentTested1Rm.timestamp instanceof Date 
+      ? mostRecentTested1Rm.timestamp 
+      : new Date(mostRecentTested1Rm.timestamp);
+    const daysAgo = (referenceDate.getTime() - timestamp.getTime()) / (1000 * 60 * 60 * 24);
     
     // If tested 1RM is within 90 days, use it as the true baseline
     if (daysAgo <= 90) {
@@ -105,7 +123,7 @@ export function estimateBaselineOneRm(
   }
   // If no tested 1RM exists, baselineOneRm stays as the estimate from workouts
   
-  // Step 7: Calculate uncertainty range
+  // Step 7: Calculate uncertainty range (recentSets already filtered by liftType)
   const recentSetCount = filterSetsByDateRange(recentSets, 60, referenceDate).length;
   const olderSetCount = recentSets.length - recentSetCount;
   const uncertaintyRange = calculateUncertaintyRange(
@@ -116,9 +134,9 @@ export function estimateBaselineOneRm(
   
   // Step 8: Calculate confidence level
   const tested1RmDaysAgo = mostRecentTested1Rm
-    ? (referenceDate.getTime() - (mostRecentTested1Rm.testedAt instanceof Date 
-        ? mostRecentTested1Rm.testedAt 
-        : new Date(mostRecentTested1Rm.testedAt)).getTime()) / (1000 * 60 * 60 * 24)
+    ? (referenceDate.getTime() - (mostRecentTested1Rm.timestamp instanceof Date 
+        ? mostRecentTested1Rm.timestamp 
+        : new Date(mostRecentTested1Rm.timestamp)).getTime()) / (1000 * 60 * 60 * 24)
     : null;
   
   const confidenceLevel = calculateConfidenceLevel(
