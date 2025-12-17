@@ -58,8 +58,8 @@ export interface BaselineEstimate {
  * independently by lift type.
  * 
  * @param liftType - Type of lift this estimate is for (bench, squat, or deadlift)
- * @param baseline1Rm - Baseline 1RM in kilograms (must be positive)
- * @param uncertaintyRange - Range of uncertainty (low and high must be positive, low <= baseline1Rm <= high)
+ * @param baseline1Rm - Baseline 1RM in kilograms (must be non-negative; 0 means "no estimate yet")
+ * @param uncertaintyRange - Range of uncertainty (bounds must be non-negative)
  * @param confidence - Confidence level between 0 and 1 (0% to 100%)
  * @param date - Date when the baseline was calculated
  * @returns A validated BaselineEstimate object
@@ -76,20 +76,31 @@ export function createBaselineEstimate(
     throw new Error('liftType must be "bench", "squat", or "deadlift"');
   }
   
-  if (baseline1Rm <= 0) {
-    throw new Error('Baseline 1RM must be a positive number');
+  if (baseline1Rm < 0) {
+    throw new Error('Baseline 1RM must be a non-negative number');
   }
   
-  if (uncertaintyRange.low <= 0 || uncertaintyRange.high <= 0) {
-    throw new Error('Uncertainty range bounds must be positive numbers');
+  if (uncertaintyRange.low < 0 || uncertaintyRange.high < 0) {
+    throw new Error('Uncertainty range bounds must be non-negative numbers');
   }
   
   if (uncertaintyRange.low > uncertaintyRange.high) {
     throw new Error('Uncertainty range low must be less than or equal to high');
   }
   
-  if (uncertaintyRange.low > baseline1Rm || baseline1Rm > uncertaintyRange.high) {
-    throw new Error('Baseline 1RM must be within the uncertainty range');
+  if (baseline1Rm === 0) {
+    // Special "no estimate" case: we expect a degenerate 0–0 range
+    if (uncertaintyRange.low !== 0 || uncertaintyRange.high !== 0) {
+      throw new Error('When baseline 1RM is 0, uncertainty range must be 0–0');
+    }
+  } else {
+    // Normal case: baseline must sit within a strictly positive range
+    if (uncertaintyRange.low <= 0 || uncertaintyRange.high <= 0) {
+      throw new Error('Uncertainty range bounds must be positive numbers when baseline 1RM is > 0');
+    }
+    if (uncertaintyRange.low > baseline1Rm || baseline1Rm > uncertaintyRange.high) {
+      throw new Error('Baseline 1RM must be within the uncertainty range');
+    }
   }
   
   if (confidence < 0 || confidence > 1) {
@@ -125,7 +136,7 @@ export function isBaselineEstimate(obj: unknown): obj is BaselineEstimate {
     typeof estimate.liftType !== 'string' ||
     (estimate.liftType !== 'bench' && estimate.liftType !== 'squat' && estimate.liftType !== 'deadlift') ||
     typeof estimate.baseline1Rm !== 'number' ||
-    estimate.baseline1Rm <= 0 ||
+    estimate.baseline1Rm < 0 ||
     typeof estimate.confidence !== 'number' ||
     estimate.confidence < 0 ||
     estimate.confidence > 1 ||
@@ -145,10 +156,28 @@ export function isBaselineEstimate(obj: unknown): obj is BaselineEstimate {
   }
   
   const uncertaintyRange = range as BaselineUncertaintyRange;
+
+  if (
+    uncertaintyRange.low < 0 ||
+    uncertaintyRange.high < 0 ||
+    uncertaintyRange.low > uncertaintyRange.high
+  ) {
+    return false;
+  }
+
+  const baseline1Rm = estimate.baseline1Rm as number;
+
+  // "No estimate" case: 0 baseline with 0–0 range
+  if (baseline1Rm === 0) {
+    return uncertaintyRange.low === 0 && uncertaintyRange.high === 0;
+  }
+
+  // Normal case: positive baseline must sit inside a positive range
   return (
     uncertaintyRange.low > 0 &&
     uncertaintyRange.high > 0 &&
-    uncertaintyRange.low <= uncertaintyRange.high
+    uncertaintyRange.low <= baseline1Rm &&
+    baseline1Rm <= uncertaintyRange.high
   );
 }
 
