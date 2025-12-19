@@ -48,7 +48,12 @@ export class ProfileRepository {
   /**
    * Saves the user profile to storage.
    * Automatically sets lastUpdated timestamp.
-   * @param profile - The user profile to save
+   * 
+   * B3.1.2 - INTERNAL STORAGE RULE: Bodyweight is stored in kilograms (kg).
+   * If the user input was in pounds, it must be converted to kg BEFORE calling this method.
+   * Existing stored data (already in kg) remains valid and unchanged.
+   * 
+   * @param profile - The user profile to save (bodyweight must be in kg)
    */
   async saveProfile(profile: UserProfile): Promise<void> {
     const now = new Date();

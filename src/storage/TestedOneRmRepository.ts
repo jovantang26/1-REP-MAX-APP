@@ -87,7 +87,12 @@ export class TestedOneRmRepository {
 
   /**
    * Adds a new tested 1RM record to storage.
-   * @param record - The tested 1RM record to add
+   * 
+   * B3.1.2 - INTERNAL STORAGE RULE: All weights are stored in kilograms (kg).
+   * If the user input was in pounds, it must be converted to kg BEFORE calling this method.
+   * Existing stored data (already in kg) remains valid and unchanged.
+   * 
+   * @param record - The tested 1RM record to add (weight must be in kg)
    */
   async addTestedOneRm(record: TestedOneRm): Promise<void> {
     const allRecords = await this.getTestedOneRms();

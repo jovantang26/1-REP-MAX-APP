@@ -134,7 +134,12 @@ export class BenchSetRepository {
 
   /**
    * Adds a new bench set to storage.
-   * @param set - The bench set to add
+   * 
+   * B3.1.2 - INTERNAL STORAGE RULE: All weights are stored in kilograms (kg).
+   * If the user input was in pounds, it must be converted to kg BEFORE calling this method.
+   * Existing stored data (already in kg) remains valid and unchanged.
+   * 
+   * @param set - The bench set to add (weight must be in kg)
    */
   async addBenchSet(set: BenchSet): Promise<void> {
     const allSets = await this.getBenchSets();
