@@ -180,6 +180,7 @@ export function OnboardingScreen() {
         </div>
 
         {/* B3.1.3 - Bodyweight input in selected units */}
+        {/* B3.4.3 - Micro-instructions under bodyweight input */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="bodyweight" style={{ display: 'block', marginBottom: '5px' }}>
             Bodyweight ({getUnitLabel(unitSystem)})
@@ -193,9 +194,13 @@ export function OnboardingScreen() {
             required
             style={{ width: '100%', padding: '8px', fontSize: '16px' }}
           />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            Your current bodyweight helps calculate strength ratios.
+          </div>
         </div>
 
         {/* B3.1.3 - Known 1RM input in selected units */}
+        {/* B3.4.3 - Micro-instructions under tested 1RM input */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="knownOneRm" style={{ display: 'block', marginBottom: '5px' }}>
             Known 1RM ({getUnitLabel(unitSystem)}) <span style={{ color: '#666' }}>(optional)</span>
@@ -209,6 +214,9 @@ export function OnboardingScreen() {
             onChange={(e) => setKnownOneRm(e.target.value)}
             style={{ width: '100%', padding: '8px', fontSize: '16px' }}
           />
+          <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+            If you've tested your 1RM recently, enter it here to improve accuracy.
+          </div>
         </div>
 
         <button

@@ -365,6 +365,10 @@ export function LogBenchScreen() {
                 placeholder="0"
                 style={{ width: '100%', padding: '8px', fontSize: '16px' }}
               />
+              {/* B3.4.3 - Micro-instructions under RIR input */}
+              <div style={{ fontSize: '12px', color: '#666', marginTop: '4px' }}>
+                How many more reps could you have done? (0 = failure)
+              </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'flex-end' }}>
               <button
@@ -464,6 +468,10 @@ export function LogBenchScreen() {
                   RIR
                   {/* B3.4.1 - RIR explanation tooltip */}
                   <InfoIcon text="RIR = reps you could still do before failure" />
+                  {/* B3.4.3 - Micro-instructions for RIR in table */}
+                  <div style={{ fontSize: '10px', color: '#999', fontWeight: 'normal', marginTop: '2px' }}>
+                    (0 = failure)
+                  </div>
                 </th>
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Actions</th>
               </tr>
