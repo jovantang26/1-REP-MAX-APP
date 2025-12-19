@@ -1,8 +1,8 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useCurrentBaselineOneRm, useUserProfile, useUnitSystem } from '../hooks';
-import { testedOneRmRepository } from '../storage';
-import type { LiftType } from '../domain';
+import { testedOneRmRepository, testedPrAnchorRepository } from '../storage';
+import type { LiftType, TestedPrAnchor } from '../domain';
 import { LIFT_DISPLAY_NAMES, getProfileSex } from '../domain';
 import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
 import { calculateOneRmRatio } from '../domain';
@@ -40,6 +40,14 @@ export function DashboardScreen() {
     powerclean: null,
   });
 
+  // B3.5.2 - Load PR anchors per lift
+  const [prAnchors, setPrAnchors] = React.useState<Record<LiftType, TestedPrAnchor | null>>({
+    bench: null,
+    squat: null,
+    deadlift: null,
+    powerclean: null,
+  });
+
   // Load last tested 1RM for each lift
   React.useEffect(() => {
     const loadLastTested = async () => {
@@ -65,6 +73,15 @@ export function DashboardScreen() {
       setLastTested1Rms(results);
     };
     loadLastTested();
+  }, []);
+
+  // B3.5.2 - Load PR anchors
+  React.useEffect(() => {
+    const loadPrAnchors = async () => {
+      const anchors = await testedPrAnchorRepository.getAllPrAnchors();
+      setPrAnchors(anchors);
+    };
+    loadPrAnchors();
   }, []);
 
   if (!profile) {
@@ -94,11 +111,13 @@ export function DashboardScreen() {
   }
 
   // Helper function to render a lift card
+  // B3.5.2 - Updated to show both tested PR anchor and estimated 1RM
   const renderLiftCard = (
     liftType: LiftType,
     result: ReturnType<typeof useCurrentBaselineOneRm>,
     lastTested: { weight: number; date: Date } | null
   ) => {
+    const prAnchor = prAnchors[liftType];
     const isLoading = result.loading;
     const hasError = result.error !== null;
     const hasResult = result.result !== null;
@@ -174,14 +193,40 @@ export function DashboardScreen() {
 
         {!isLoading && !hasError && hasResult && (
           <>
-            {/* B3.1.3 - Format baseline 1RM in selected units */}
-            <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px', color: '#007bff' }}>
-              {formatWeight(result.result!.baselineOneRm, unitSystem, 1)} {getUnitLabel(unitSystem)}
-            </div>
-            
-            {/* B3.1.3 - Format uncertainty range in selected units */}
-            <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
-              Uncertainty: {formatWeight(result.result!.uncertaintyRange.low, unitSystem, 1)} - {formatWeight(result.result!.uncertaintyRange.high, unitSystem, 1)} {getUnitLabel(unitSystem)}
+            {/* B3.5.2 - Show Best Tested 1RM (PR Anchor) */}
+            {prAnchor ? (
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#e7f3ff', borderRadius: '4px' }}>
+                <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>
+                  Best Tested 1RM (PR)
+                </div>
+                <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#28a745' }}>
+                  {formatWeight(prAnchor.bestTested1Rm, unitSystem, 1)} {getUnitLabel(unitSystem)}
+                </div>
+                <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                  Achieved: {new Date(prAnchor.dateAchieved).toLocaleDateString()}
+                </div>
+              </div>
+            ) : (
+              <div style={{ marginBottom: '15px', padding: '10px', backgroundColor: '#f9f9f9', borderRadius: '4px' }}>
+                <div style={{ fontSize: '14px', color: '#999', fontStyle: 'italic' }}>
+                  No tested PR yet. Log a tested 1RM to set your anchor.
+                </div>
+              </div>
+            )}
+
+            {/* B3.5.2 - Show Estimated 1RM ± uncertainty */}
+            <div style={{ marginBottom: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
+              <div style={{ fontSize: '14px', color: '#666', marginBottom: '4px' }}>
+                Estimated 1RM
+              </div>
+              <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px', color: '#007bff' }}>
+                {formatWeight(result.result!.baselineOneRm, unitSystem, 1)} {getUnitLabel(unitSystem)}
+              </div>
+              
+              {/* B3.1.3 - Format uncertainty range in selected units */}
+              <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
+                Uncertainty: {formatWeight(result.result!.uncertaintyRange.low, unitSystem, 1)} - {formatWeight(result.result!.uncertaintyRange.high, unitSystem, 1)} {getUnitLabel(unitSystem)}
+              </div>
             </div>
             
             <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
