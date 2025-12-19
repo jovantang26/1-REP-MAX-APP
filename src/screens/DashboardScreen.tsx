@@ -110,11 +110,13 @@ export function DashboardScreen() {
     
     if (hasResult && profile) {
       try {
-        // B3.2.1 - Use getProfileSex helper for backward compatibility
+        // B3.2.2 - Use getProfileSex helper and support "other"
         const sexValue = getProfileSex(profile);
-        const gender = (sexValue === "male" || sexValue === "female") ? sexValue : "male";
+        const gender = (sexValue === "male" || sexValue === "female" || sexValue === "other") 
+          ? sexValue as "male" | "female" | "other"
+          : "other"; // Default to "other" if unrecognized
         
-        // Use universal getStrengthCategory function (B2.5.2)
+        // Use universal getStrengthCategory function (B2.5.2, B3.2.2)
         const categoryLabel = getStrengthCategory(
           liftType,
           gender,

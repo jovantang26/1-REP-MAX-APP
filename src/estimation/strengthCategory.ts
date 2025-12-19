@@ -129,10 +129,15 @@ const STRENGTH_THRESHOLDS: Record<LiftType, Record<string, {
  * This ensures accurate categorization for bench, squat, and deadlift which have
  * very different strength standards.
  * 
+ * B3.2.2 - Behavior for sex = "other":
+ * - Uses default thresholds (same as male thresholds) for all lifts
+ * - This ensures consistent behavior across all lifts when sex is "other"
+ * - All lifts (bench, squat, deadlift) use the same pathway for "other"
+ * 
  * @param liftType - Type of lift (bench, squat, or deadlift) - REQUIRED
  * @param oneRm - The 1RM in kilograms
  * @param bodyweight - The bodyweight in kilograms
- * @param gender - The user's gender (used to select thresholds)
+ * @param gender - The user's sex/gender (used to select thresholds)
  * @returns Strength category
  */
 export function determineStrengthCategoryForGender(
@@ -146,7 +151,9 @@ export function determineStrengthCategoryForGender(
   // Get lift-specific thresholds
   const liftThresholds = STRENGTH_THRESHOLDS[liftType];
   
-  // Normalize gender string for lookup
+  // B3.2.2 - Normalize gender string for lookup
+  // For "other" or unrecognized values, falls back to default (male) thresholds
+  // This ensures consistent behavior across all lifts
   const genderLower = gender.toLowerCase().trim();
   const thresholds = liftThresholds[genderLower] || liftThresholds.default;
   
@@ -168,10 +175,15 @@ export function determineStrengthCategoryForGender(
  * This ensures accurate categorization for bench, squat, and deadlift which have
  * very different strength standards.
  * 
+ * B3.2.2 - Behavior for sex = "other":
+ * - Uses default thresholds (same as male thresholds) for all lifts
+ * - This ensures consistent behavior across all lifts when sex is "other"
+ * - All lifts (bench, squat, deadlift) use the same pathway for "other"
+ * 
  * @param liftType - Type of lift (bench, squat, or deadlift) - REQUIRED
  * @param oneRm - The 1RM in kilograms
  * @param bodyweight - The bodyweight in kilograms
- * @param gender - The user's gender
+ * @param gender - The user's sex/gender
  * @returns A StrengthCategory object with thresholds
  */
 export function getStrengthCategoryForGender(
@@ -186,7 +198,8 @@ export function getStrengthCategoryForGender(
   // Get lift-specific thresholds
   const liftThresholds = STRENGTH_THRESHOLDS[liftType];
   
-  // Get thresholds for the gender
+  // B3.2.2 - Get thresholds for the gender
+  // For "other" or unrecognized values, falls back to default (male) thresholds
   const genderLower = gender.toLowerCase().trim();
   const thresholds = liftThresholds[genderLower] || liftThresholds.default;
   
@@ -212,6 +225,7 @@ export function getStrengthCategoryForGender(
 
 /**
  * B2.5.2 - Universal Function Interface for Categories
+ * B3.2.2 - Updated to support "other" sex option.
  * 
  * Creates a universal function for categorizing all lifts.
  * 
@@ -221,15 +235,20 @@ export function getStrengthCategoryForGender(
  * - Returns category name as string
  * - No bench-only assumptions
  * 
+ * B3.2.2 - Behavior for sex = "other":
+ * - Uses default thresholds (same as male thresholds) for all lifts
+ * - This ensures consistent behavior across all lifts when sex is "other"
+ * - Users can still get accurate strength categories based on their performance
+ * 
  * @param liftType - Type of lift (bench, squat, or deadlift) - REQUIRED
- * @param gender - User's gender ("male" or "female")
+ * @param gender - User's sex/gender ("male", "female", or "other")
  * @param oneRm - The 1RM in kilograms
  * @param bodyweight - The bodyweight in kilograms
  * @returns Category label as string ("novice", "intermediate", "advanced", or "elite")
  */
 export function getStrengthCategory(
   liftType: LiftType,
-  gender: "male" | "female",
+  gender: "male" | "female" | "other",
   oneRm: number,
   bodyweight: number
 ): string {
@@ -239,7 +258,8 @@ export function getStrengthCategory(
   // Get lift-specific thresholds
   const liftThresholds = STRENGTH_THRESHOLDS[liftType];
   
-  // Get gender-specific thresholds (normalize gender string)
+  // B3.2.2 - Get gender-specific thresholds (normalize gender string)
+  // For "other", falls back to default (male) thresholds
   const genderLower = gender.toLowerCase().trim();
   const thresholds = liftThresholds[genderLower] || liftThresholds.default;
   

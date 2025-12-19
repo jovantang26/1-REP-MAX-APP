@@ -210,5 +210,60 @@ describe('B2.5.2 - getStrengthCategory', () => {
       expect(category2).toBe('intermediate');
     });
   });
+
+  describe('B3.2.2 - sex = "other" behavior', () => {
+    it('should use default (male) thresholds for "other" across all lifts', () => {
+      const bodyweight = 80;
+      const oneRm = 100; // 1.25x ratio
+
+      // "other" should use default (male) thresholds
+      // Bench: 1.25x is Intermediate (1.0-1.5) for male
+      const benchOther = getStrengthCategory('bench', 'other', oneRm, bodyweight);
+      expect(benchOther).toBe('intermediate');
+
+      // Squat: 1.25x is Novice (< 1.5) for male
+      const squatOther = getStrengthCategory('squat', 'other', oneRm, bodyweight);
+      expect(squatOther).toBe('novice');
+
+      // Deadlift: 1.25x is Novice (< 2.0) for male
+      const deadliftOther = getStrengthCategory('deadlift', 'other', oneRm, bodyweight);
+      expect(deadliftOther).toBe('novice');
+    });
+
+    it('should produce same results as "male" for "other" across all lifts', () => {
+      const bodyweight = 80;
+      const testCases = [
+        { oneRm: 79, expectedCategory: 'novice' }, // 0.9875x
+        { oneRm: 100, expectedCategory: 'intermediate' }, // 1.25x
+        { oneRm: 120, expectedCategory: 'advanced' }, // 1.5x
+        { oneRm: 160, expectedCategory: 'elite' }, // 2.0x
+      ];
+
+      for (const testCase of testCases) {
+        const lifts: Array<'bench' | 'squat' | 'deadlift'> = ['bench', 'squat', 'deadlift'];
+        for (const liftType of lifts) {
+          const maleCategory = getStrengthCategory(liftType, 'male', testCase.oneRm, bodyweight);
+          const otherCategory = getStrengthCategory(liftType, 'other', testCase.oneRm, bodyweight);
+          
+          // "other" should match "male" for all lifts (uses default thresholds)
+          expect(otherCategory).toBe(maleCategory);
+        }
+      }
+    });
+
+    it('should handle "other" consistently across all lifts with different ratios', () => {
+      const bodyweight = 80;
+
+      // Test that "other" uses default thresholds consistently
+      // Bench: 120kg = 1.5x (Advanced for male)
+      expect(getStrengthCategory('bench', 'other', 120, bodyweight)).toBe('advanced');
+
+      // Squat: 150kg = 1.875x (Intermediate for male, 1.5-2.0)
+      expect(getStrengthCategory('squat', 'other', 150, bodyweight)).toBe('intermediate');
+
+      // Deadlift: 200kg = 2.5x (Advanced for male, >= 2.5 is advanced)
+      expect(getStrengthCategory('deadlift', 'other', 200, bodyweight)).toBe('advanced');
+    });
+  });
 });
 
