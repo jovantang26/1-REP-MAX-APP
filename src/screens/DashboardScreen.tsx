@@ -6,7 +6,7 @@ import type { LiftType } from '../domain';
 import { LIFT_DISPLAY_NAMES, getProfileSex } from '../domain';
 import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
 import { calculateOneRmRatio } from '../domain';
-import { formatWeight, getUnitLabel } from '../utils';
+import { formatWeight, getUnitLabel, getCategoryDescription } from '../utils';
 
 /**
  * Home / Dashboard Screen (B2.3.2 - Multi-Lift Dashboard)
@@ -185,14 +185,14 @@ export function DashboardScreen() {
             </div>
 
             {/* B2.5.3 - Category Display: Category label, ratio value, and microcopy */}
+            {/* B3.4.2 - Strength Category Descriptions: Supportive microcopy */}
             {strengthCategoryLabel && ratio && (
               <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
                 <div style={{ marginBottom: '4px' }}>
                   Strength: <strong>{strengthCategoryLabel}</strong> ({ratio}× BW)
                 </div>
-                {/* Optional microcopy: "Advanced for your bodyweight" */}
-                <div style={{ fontSize: '12px', color: '#999', fontStyle: 'italic' }}>
-                  {strengthCategoryLabel} for your bodyweight
+                <div style={{ fontSize: '12px', color: '#666', fontStyle: 'italic', marginTop: '4px' }}>
+                  {getCategoryDescription(strengthCategoryLabel.toLowerCase())}
                 </div>
               </div>
             )}
