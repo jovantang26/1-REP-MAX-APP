@@ -6,6 +6,7 @@ import { LIFT_DISPLAY_NAMES, createEmptySessionSetRow, validateSessionSetRow, ty
 import { benchSetRepository } from '../storage';
 import { filterSetsByDateRange } from '../estimation';
 import { formatWeightAsNumber, parseWeightInput, getUnitLabel } from '../utils';
+import { InfoIcon } from '../components';
 
 /**
  * Log Training Session Screen (B3.3.1 - Session Mode Design)
@@ -353,6 +354,8 @@ export function LogBenchScreen() {
             <div>
               <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
                 RIR
+                {/* B3.4.1 - RIR explanation tooltip */}
+                <InfoIcon text="RIR = reps you could still do before failure" />
               </label>
               <input
                 type="number"
@@ -457,7 +460,11 @@ export function LogBenchScreen() {
               <tr style={{ borderBottom: '2px solid #ddd' }}>
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Weight ({getUnitLabel(unitSystem)})</th>
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Reps</th>
-                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>RIR</th>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>
+                  RIR
+                  {/* B3.4.1 - RIR explanation tooltip */}
+                  <InfoIcon text="RIR = reps you could still do before failure" />
+                </th>
                 <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Actions</th>
               </tr>
             </thead>
