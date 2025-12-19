@@ -37,16 +37,40 @@ export interface UserProfile {
   
   /** Optional: Date when the profile was last updated (ISO string or Date) */
   lastUpdated?: Date | string;
+  
+  /** 
+   * B3.2.3 - Guest Mode Identity Layer
+   * Unique identifier for the profile (UUID v4).
+   * Used for local identity tracking without backend/auth.
+   */
+  profileId: string;
+  
+  /** 
+   * B3.2.3 - Guest Mode Identity Layer
+   * Timestamp when the profile was created.
+   * Used for tracking profile age and identity.
+   */
+  profileCreatedAt: Date | string;
+  
+  /** 
+   * B3.2.3 - Guest Mode Identity Layer
+   * Flag indicating whether the user has completed onboarding.
+   * Used to determine if user should see onboarding screen or dashboard.
+   */
+  hasCompletedOnboarding: boolean;
 }
 
 /**
  * B3.2.1 - Creates a new UserProfile with validation.
+ * B3.2.3 - Adds guest mode identity fields (profileId, profileCreatedAt, hasCompletedOnboarding).
+ * 
  * @param age - User's age in years (must be positive)
  * @param sex - User's sex ("male", "female", or "other")
  * @param bodyweight - User's bodyweight in kilograms (must be positive)
  * @param sexOtherText - Optional text when sex = "other"
- * @param dateCreated - Optional creation date
- * @param lastUpdated - Optional last update date
+ * @param dateCreated - Optional creation date (defaults to now)
+ * @param lastUpdated - Optional last update date (defaults to now)
+ * @param hasCompletedOnboarding - Whether onboarding is complete (defaults to true for new profiles)
  * @returns A validated UserProfile object
  * @throws Error if validation fails
  */
@@ -56,7 +80,8 @@ export function createUserProfile(
   bodyweight: number,
   sexOtherText?: string,
   dateCreated?: Date | string,
-  lastUpdated?: Date | string
+  lastUpdated?: Date | string,
+  hasCompletedOnboarding: boolean = true
 ): UserProfile {
   if (age <= 0) {
     throw new Error('Age must be a positive number');
@@ -70,12 +95,20 @@ export function createUserProfile(
     throw new Error('Bodyweight must be a positive number');
   }
   
+  const now = new Date();
+  
+  // B3.2.3 - Generate UUID v4 for profileId
+  const profileId = generateUUID();
+  
   const profile: UserProfile = {
     age,
     sex,
     bodyweight,
-    dateCreated,
-    lastUpdated,
+    dateCreated: dateCreated || now,
+    lastUpdated: lastUpdated || now,
+    profileId,
+    profileCreatedAt: dateCreated || now,
+    hasCompletedOnboarding,
   };
   
   // Only include sexOtherText if sex is "other"
@@ -84,6 +117,19 @@ export function createUserProfile(
   }
   
   return profile;
+}
+
+/**
+ * B3.2.3 - Generates a UUID v4 for profile identification.
+ * Simple implementation for local identity (no crypto library required).
+ * @returns UUID v4 string
+ */
+function generateUUID(): string {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
 }
 
 /**
@@ -115,6 +161,7 @@ export function createUserProfileLegacy(
 
 /**
  * B3.2.1 - Type guard to check if an object is a valid UserProfile.
+ * B3.2.3 - Updated to support guest mode identity fields.
  * Supports both new (sex) and legacy (gender) formats for migration.
  */
 export function isUserProfile(obj: unknown): obj is UserProfile {
@@ -131,47 +178,70 @@ export function isUserProfile(obj: unknown): obj is UserProfile {
   const hasSex = profile.sex === 'male' || profile.sex === 'female' || profile.sex === 'other';
   const hasLegacyGender = typeof profile.gender === 'string' && profile.gender.length > 0;
   
-  return hasValidAge && hasValidBodyweight && (hasSex || hasLegacyGender);
+  // B3.2.3 - Guest mode identity fields are optional for backward compatibility
+  // If missing, they will be added during migration
+  const hasValidIdentity = 
+    (profile.profileId === undefined || typeof profile.profileId === 'string') &&
+    (profile.profileCreatedAt === undefined || typeof profile.profileCreatedAt === 'string' || profile.profileCreatedAt instanceof Date) &&
+    (profile.hasCompletedOnboarding === undefined || typeof profile.hasCompletedOnboarding === 'boolean');
+  
+  return hasValidAge && hasValidBodyweight && (hasSex || hasLegacyGender) && hasValidIdentity;
 }
 
 /**
  * B3.2.1 - Migrates a legacy UserProfile (with gender string) to new format (with sex enum).
+ * B3.2.3 - Adds guest mode identity fields if missing.
  * This is a safe migration that preserves existing data.
  */
 export function migrateUserProfile(profile: UserProfile): UserProfile {
-  // If already migrated (has sex field), return as-is
-  if (profile.sex === 'male' || profile.sex === 'female' || profile.sex === 'other') {
-    return profile;
-  }
+  let migrated = { ...profile };
   
-  // Migrate from legacy gender field
-  if (profile.gender) {
-    const genderLower = profile.gender.toLowerCase().trim();
-    let sex: Sex;
-    let sexOtherText: string | undefined;
-    
-    if (genderLower === 'male' || genderLower === 'm') {
-      sex = 'male';
-    } else if (genderLower === 'female' || genderLower === 'f' || genderLower === 'woman' || genderLower === 'women') {
-      sex = 'female';
+  // B3.2.1 - Migrate gender to sex if needed
+  if (!(migrated.sex === 'male' || migrated.sex === 'female' || migrated.sex === 'other')) {
+    if (migrated.gender) {
+      const genderLower = migrated.gender.toLowerCase().trim();
+      let sex: Sex;
+      let sexOtherText: string | undefined;
+      
+      if (genderLower === 'male' || genderLower === 'm') {
+        sex = 'male';
+      } else if (genderLower === 'female' || genderLower === 'f' || genderLower === 'woman' || genderLower === 'women') {
+        sex = 'female';
+      } else {
+        sex = 'other';
+        sexOtherText = migrated.gender; // Preserve original text
+      }
+      
+      migrated = {
+        ...migrated,
+        sex,
+        sexOtherText,
+        // Keep gender for backward compatibility during transition
+      };
     } else {
-      sex = 'other';
-      sexOtherText = profile.gender; // Preserve original text
+      // Default to "other" if no gender/sex found
+      migrated = {
+        ...migrated,
+        sex: 'other',
+      };
     }
-    
-    return {
-      ...profile,
-      sex,
-      sexOtherText,
-      // Keep gender for backward compatibility during transition
-    };
   }
   
-  // Default to "other" if no gender/sex found (shouldn't happen with valid profiles)
-  return {
-    ...profile,
-    sex: 'other',
-  };
+  // B3.2.3 - Add guest mode identity fields if missing
+  if (!migrated.profileId) {
+    migrated.profileId = generateUUID();
+  }
+  
+  if (!migrated.profileCreatedAt) {
+    migrated.profileCreatedAt = migrated.dateCreated || new Date();
+  }
+  
+  if (migrated.hasCompletedOnboarding === undefined) {
+    // If profile exists, assume onboarding is complete
+    migrated.hasCompletedOnboarding = true;
+  }
+  
+  return migrated;
 }
 
 /**

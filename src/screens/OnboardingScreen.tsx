@@ -96,6 +96,10 @@ export function OnboardingScreen() {
       }
 
       if (saved) {
+        // B3.2.3 - Show profile created confirmation
+        // Simple alert for now (can be upgraded to toast notification in future)
+        alert('Profile created successfully! Welcome to 1RM Prediction.');
+        
         // Navigate to dashboard after onboarding
         navigate('/dashboard');
       }
