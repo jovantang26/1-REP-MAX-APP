@@ -55,10 +55,12 @@ export function logStorageState(): void {
                   getStorageItem<unknown[]>(STORAGE_KEYS.BENCH_SETS) ||
                   [];
   
+  // B3.5.1 - Include powerclean in counts
   const setsByLift: Record<LiftType, number> = {
     bench: 0,
     squat: 0,
     deadlift: 0,
+    powerclean: 0,
   };
   
   let setsWithoutLiftType = 0;
@@ -68,7 +70,7 @@ export function logStorageState(): void {
       if (set && typeof set === 'object') {
         const setObj = set as any;
         const liftType = setObj.liftType;
-        if (liftType === 'bench' || liftType === 'squat' || liftType === 'deadlift') {
+        if (liftType === 'bench' || liftType === 'squat' || liftType === 'deadlift' || liftType === 'powerclean') {
           setsByLift[liftType as LiftType]++;
         } else {
           setsWithoutLiftType++;
@@ -82,6 +84,7 @@ export function logStorageState(): void {
   console.log(`  Bench: ${setsByLift.bench}`);
   console.log(`  Squat: ${setsByLift.squat}`);
   console.log(`  Deadlift: ${setsByLift.deadlift}`);
+  console.log(`  Power Clean: ${setsByLift.powerclean}`);
   if (setsWithoutLiftType > 0) {
     console.warn(`  ⚠️  Missing liftType: ${setsWithoutLiftType} (needs migration)`);
   }
@@ -89,10 +92,12 @@ export function logStorageState(): void {
   // Log tested 1RMs
   const allTested = getStorageItem<unknown[]>(STORAGE_KEYS.TESTED_ONE_RMS) || [];
   
+  // B3.5.1 - Include powerclean in counts
   const testedByLift: Record<LiftType, number> = {
     bench: 0,
     squat: 0,
     deadlift: 0,
+    powerclean: 0,
   };
   
   let testedWithoutLiftType = 0;
@@ -102,7 +107,7 @@ export function logStorageState(): void {
       if (tested && typeof tested === 'object') {
         const testedObj = tested as any;
         const liftType = testedObj.liftType;
-        if (liftType === 'bench' || liftType === 'squat' || liftType === 'deadlift') {
+        if (liftType === 'bench' || liftType === 'squat' || liftType === 'deadlift' || liftType === 'powerclean') {
           testedByLift[liftType as LiftType]++;
         } else {
           testedWithoutLiftType++;
@@ -116,6 +121,7 @@ export function logStorageState(): void {
   console.log(`  Bench: ${testedByLift.bench}`);
   console.log(`  Squat: ${testedByLift.squat}`);
   console.log(`  Deadlift: ${testedByLift.deadlift}`);
+  console.log(`  Power Clean: ${testedByLift.powerclean}`);
   if (testedWithoutLiftType > 0) {
     console.warn(`  ⚠️  Missing liftType: ${testedWithoutLiftType} (needs migration)`);
   }

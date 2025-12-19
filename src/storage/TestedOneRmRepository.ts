@@ -1,6 +1,7 @@
 import type { TestedOneRm, LiftType } from '../domain';
-import { isTestedOneRm } from '../domain';
+import { isTestedOneRm, createTestedPrAnchor } from '../domain';
 import { STORAGE_KEYS, getStorageItem, setStorageItem, serializeDate, deserializeDate } from './storageUtils';
+import { testedPrAnchorRepository } from './TestedPrAnchorRepository';
 
 /**
  * TestedOneRmRepository handles storage and retrieval of tested 1RM records.
@@ -92,6 +93,8 @@ export class TestedOneRmRepository {
    * If the user input was in pounds, it must be converted to kg BEFORE calling this method.
    * Existing stored data (already in kg) remains valid and unchanged.
    * 
+   * B3.5.1 - Automatically updates PR anchor if this is a new personal record.
+   * 
    * @param record - The tested 1RM record to add (weight must be in kg)
    */
   async addTestedOneRm(record: TestedOneRm): Promise<void> {
@@ -115,6 +118,11 @@ export class TestedOneRmRepository {
     }
 
     setStorageItem(this.storageKey, allRecords);
+
+    // B3.5.1 - Update PR anchor if this is a new PR
+    const timestamp = record.timestamp instanceof Date ? record.timestamp : new Date(record.timestamp);
+    const prAnchor = createTestedPrAnchor(record.liftType, record.weight, timestamp, record.id);
+    await testedPrAnchorRepository.savePrAnchor(prAnchor);
   }
 
   /**

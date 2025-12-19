@@ -70,8 +70,8 @@ export function createBenchSet(
     throw new Error('Set ID must be provided');
   }
   
-  if (!liftType || (liftType !== 'bench' && liftType !== 'squat' && liftType !== 'deadlift')) {
-    throw new Error('liftType must be "bench", "squat", or "deadlift"');
+  if (!liftType || (liftType !== 'bench' && liftType !== 'squat' && liftType !== 'deadlift' && liftType !== 'powerclean')) {
+    throw new Error('liftType must be "bench", "squat", "deadlift", or "powerclean"');
   }
   
   if (!performedAt) {

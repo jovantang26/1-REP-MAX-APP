@@ -253,7 +253,8 @@ export function LogBenchScreen() {
         borderBottom: '2px solid #ddd',
         paddingBottom: '10px'
       }}>
-        {(['bench', 'squat', 'deadlift'] as LiftType[]).map((liftType) => (
+        {/* B3.5.1 - Include powerclean in lift selector */}
+        {(['bench', 'squat', 'deadlift', 'powerclean'] as LiftType[]).map((liftType) => (
           <button
             key={liftType}
             onClick={() => {

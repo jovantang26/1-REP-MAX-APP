@@ -30,6 +30,8 @@ export const STORAGE_KEYS = {
   BENCH_SETS: '1rm_app_bench_sets',
   /** Shared collection for all tested 1RMs (bench, squat, deadlift) */
   TESTED_ONE_RMS: '1rm_app_tested_one_rms',
+  /** B3.5.1 - Shared collection for all tested PR anchors (best tested 1RM per lift) */
+  TESTED_PR_ANCHORS: '1rm_app_tested_pr_anchors',
   /** Shared collection for all 1RM estimates (bench, squat, deadlift) */
   ONE_RM_ESTIMATES: '1rm_app_one_rm_estimates',
   /** Migration flag to track if data migration has been completed */

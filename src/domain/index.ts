@@ -27,6 +27,9 @@ export { createUserProfile, createUserProfileLegacy, isUserProfile, migrateUserP
 export type { SessionSetRow } from './SessionSetRow';
 export { createEmptySessionSetRow, validateSessionSetRow } from './SessionSetRow';
 
+export type { TestedPrAnchor } from './TestedPrAnchor';
+export { createTestedPrAnchor, isTestedPrAnchor } from './TestedPrAnchor';
+
 // TrainingSet (replaces BenchSet)
 export type { TrainingSet } from './TrainingSet';
 export { createTrainingSet, isTrainingSet } from './TrainingSet';

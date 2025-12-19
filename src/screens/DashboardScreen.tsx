@@ -27,25 +27,29 @@ export function DashboardScreen() {
   const { profile } = useUserProfile();
   const { unitSystem } = useUnitSystem();
   
-  // Load data for all three lifts
+  // B3.5.1 - Load data for all four lifts (including powerclean)
   const benchResult = useCurrentBaselineOneRm('bench');
   const squatResult = useCurrentBaselineOneRm('squat');
   const deadliftResult = useCurrentBaselineOneRm('deadlift');
+  const powercleanResult = useCurrentBaselineOneRm('powerclean');
   
   const [lastTested1Rms, setLastTested1Rms] = React.useState<Record<LiftType, { weight: number; date: Date } | null>>({
     bench: null,
     squat: null,
     deadlift: null,
+    powerclean: null,
   });
 
   // Load last tested 1RM for each lift
   React.useEffect(() => {
     const loadLastTested = async () => {
-      const lifts: LiftType[] = ['bench', 'squat', 'deadlift'];
+      // B3.5.1 - Include powerclean in supported lifts
+      const lifts: LiftType[] = ['bench', 'squat', 'deadlift', 'powerclean'];
       const results: Record<LiftType, { weight: number; date: Date } | null> = {
         bench: null,
         squat: null,
         deadlift: null,
+        powerclean: null,
       };
       
       for (const liftType of lifts) {
@@ -217,11 +221,13 @@ export function DashboardScreen() {
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Dashboard</h1>
       
-      {/* B2.3.2: 3 vertically stacked cards for each lift */}
+      {/* B2.3.2: Vertically stacked cards for each lift */}
+      {/* B3.5.1 - Include powerclean card */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
         {renderLiftCard('bench', benchResult, lastTested1Rms.bench)}
         {renderLiftCard('squat', squatResult, lastTested1Rms.squat)}
         {renderLiftCard('deadlift', deadliftResult, lastTested1Rms.deadlift)}
+        {renderLiftCard('powerclean', powercleanResult, lastTested1Rms.powerclean)}
       </div>
 
       <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '20px' }}>

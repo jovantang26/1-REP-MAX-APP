@@ -38,6 +38,9 @@ export { BenchSetRepository, benchSetRepository } from './BenchSetRepository';
 // TestedOneRmRepository
 export { TestedOneRmRepository, testedOneRmRepository } from './TestedOneRmRepository';
 
+// B3.5.1 - TestedPrAnchorRepository
+export { TestedPrAnchorRepository, testedPrAnchorRepository } from './TestedPrAnchorRepository';
+
 // OneRmEstimateRepository
 export { OneRmEstimateRepository, oneRmEstimateRepository } from './OneRmEstimateRepository';
 

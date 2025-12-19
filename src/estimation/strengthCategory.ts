@@ -120,6 +120,26 @@ const STRENGTH_THRESHOLDS: Record<LiftType, Record<string, {
       elite: Infinity,
     },
   },
+  powerclean: {
+    male: {
+      novice: 1.2,
+      intermediate: 1.5,
+      advanced: 1.8,
+      elite: Infinity,
+    },
+    female: {
+      novice: 0.9,
+      intermediate: 1.2,
+      advanced: 1.5,
+      elite: Infinity,
+    },
+    default: {
+      novice: 1.2,
+      intermediate: 1.5,
+      advanced: 1.8,
+      elite: Infinity,
+    },
+  },
 };
 
 /**

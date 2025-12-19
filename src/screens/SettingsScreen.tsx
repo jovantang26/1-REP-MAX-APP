@@ -1,7 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUnitSystem } from '../hooks';
-import type { UnitSystem } from '../domain';
+import type { UnitSystem, LiftType } from '../domain';
+import { LIFT_DISPLAY_NAMES } from '../domain';
+import { testedPrAnchorRepository } from '../storage';
+import type { TestedPrAnchor } from '../domain';
+import { formatWeight, getUnitLabel } from '../utils';
 
 /**
  * Settings Screen
@@ -15,6 +19,29 @@ export function SettingsScreen() {
   const navigate = useNavigate();
   const { unitSystem, loading: unitLoading, saveUnitSystem } = useUnitSystem();
   const [saving, setSaving] = useState(false);
+  
+  // B3.5.1 - Load PR anchors per lift
+  const [prAnchors, setPrAnchors] = useState<Record<LiftType, TestedPrAnchor | null>>({
+    bench: null,
+    squat: null,
+    deadlift: null,
+    powerclean: null,
+  });
+  const [loadingAnchors, setLoadingAnchors] = useState(true);
+
+  useEffect(() => {
+    const loadAnchors = async () => {
+      try {
+        const anchors = await testedPrAnchorRepository.getAllPrAnchors();
+        setPrAnchors(anchors);
+      } catch (error) {
+        console.error('Failed to load PR anchors:', error);
+      } finally {
+        setLoadingAnchors(false);
+      }
+    };
+    loadAnchors();
+  }, []);
 
   const handleUnitChange = async (newUnit: UnitSystem) => {
     if (newUnit === unitSystem || saving) {
@@ -116,19 +143,76 @@ export function SettingsScreen() {
           )}
         </div>
 
+        {/* B3.5.1 - PR Anchors per Lift */}
+        <div
+          style={{
+            width: '100%',
+            padding: '12px',
+            fontSize: '16px',
+            backgroundColor: '#f5f5f5',
+            border: '2px solid #ddd',
+            borderRadius: '4px',
+            marginBottom: '10px',
+          }}
+        >
+          <div style={{ marginBottom: '12px', fontWeight: 'bold' }}>
+            Personal Records (PR Anchors)
+          </div>
+          {loadingAnchors ? (
+            <div style={{ color: '#666', fontSize: '14px' }}>Loading...</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {(['bench', 'squat', 'deadlift', 'powerclean'] as LiftType[]).map((liftType) => {
+                const anchor = prAnchors[liftType];
+                return (
+                  <div
+                    key={liftType}
+                    style={{
+                      padding: '8px',
+                      backgroundColor: anchor ? '#e7f3ff' : '#f9f9f9',
+                      borderRadius: '4px',
+                      fontSize: '14px',
+                    }}
+                  >
+                    <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>
+                      {LIFT_DISPLAY_NAMES[liftType]}
+                    </div>
+                    {anchor ? (
+                      <div style={{ color: '#666' }}>
+                        <div>
+                          Best Tested: <strong>{formatWeight(anchor.bestTested1Rm, unitSystem, 1)} {getUnitLabel(unitSystem)}</strong>
+                        </div>
+                        <div style={{ fontSize: '12px', color: '#999', marginTop: '2px' }}>
+                          Achieved: {new Date(anchor.dateAchieved).toLocaleDateString()}
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ color: '#999', fontStyle: 'italic' }}>
+                        No tested PR yet
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
         <button
           onClick={() => {
             alert(
-              '1RM Prediction App (Beta 2.0)\n\n' +
+              '1RM Prediction App (Beta 3.0)\n\n' +
               'Track and predict your 1RM for multiple lifts:\n' +
               '• Bench Press\n' +
               '• Back Squat\n' +
-              '• Deadlift (Conventional)\n\n' +
+              '• Deadlift (Conventional)\n' +
+              '• Power Clean\n\n' +
               'Features:\n' +
               '• Per-lift baseline 1RM estimates\n' +
               '• Strength categories per lift\n' +
               '• 90-day history tracking\n' +
-              '• Automatic calibration from tested 1RMs\n\n' +
+              '• Automatic calibration from tested 1RMs\n' +
+              '• PR anchors (best tested 1RM per lift)\n\n' +
               'Your data is tracked independently for each lift.'
             );
           }}
