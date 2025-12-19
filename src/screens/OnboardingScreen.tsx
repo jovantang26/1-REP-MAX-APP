@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserProfile, useUnitSystem } from '../hooks';
-import { createUserProfile, type LiftType } from '../domain';
+import { createUserProfile, type LiftType, type Sex } from '../domain';
 import { createTestedOneRm } from '../domain';
 import { testedOneRmRepository } from '../storage';
 import { formatWeightAsNumber, parseWeightInput, getUnitLabel } from '../utils';
@@ -20,17 +20,20 @@ export function OnboardingScreen() {
   const { profile, saveProfile } = useUserProfile();
   const { unitSystem } = useUnitSystem();
   const [age, setAge] = useState<string>('');
-  const [gender, setGender] = useState<string>('');
+  const [sex, setSex] = useState<Sex | ''>('');
+  const [sexOtherText, setSexOtherText] = useState<string>('');
   const [bodyweight, setBodyweight] = useState<string>('');
   const [knownOneRm, setKnownOneRm] = useState<string>('');
   const [saving, setSaving] = useState<boolean>(false);
 
   // Pre-fill form if profile exists
   // B3.1.3 - Convert stored kg values to display units
+  // B3.2.1 - Pre-fill sex selection
   React.useEffect(() => {
     if (profile) {
       setAge(profile.age.toString());
-      setGender(profile.gender);
+      setSex(profile.sex || '');
+      setSexOtherText(profile.sexOtherText || '');
       // Convert bodyweight from kg to display units
       setBodyweight(formatWeightAsNumber(profile.bodyweight, unitSystem).toString());
     }
@@ -41,14 +44,22 @@ export function OnboardingScreen() {
     setSaving(true);
 
     try {
+      // B3.2.1 - Validate sex selection
+      if (!sex || (sex !== 'male' && sex !== 'female' && sex !== 'other')) {
+        alert('Please select a sex option');
+        setSaving(false);
+        return;
+      }
+      
       // B3.1.3 - Parse bodyweight input and convert to kg for storage
       const bodyweightInKg = parseWeightInput(bodyweight, unitSystem);
       
-      // Create and save profile (bodyweight is now in kg)
+      // B3.2.1 - Create and save profile with sex field
       const newProfile = createUserProfile(
         parseInt(age, 10),
-        gender,
-        bodyweightInKg
+        sex as Sex,
+        bodyweightInKg,
+        sex === 'other' ? sexOtherText : undefined
       );
       
       const saved = await saveProfile(newProfile);
@@ -116,19 +127,52 @@ export function OnboardingScreen() {
           />
         </div>
 
+        {/* B3.2.1 - Sex Selection UI with buttons */}
         <div style={{ marginBottom: '15px' }}>
-          <label htmlFor="gender" style={{ display: 'block', marginBottom: '5px' }}>
-            Gender
+          <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+            Sex
           </label>
-          <input
-            id="gender"
-            type="text"
-            value={gender}
-            onChange={(e) => setGender(e.target.value)}
-            placeholder="e.g., male, female, other"
-            required
-            style={{ width: '100%', padding: '8px', fontSize: '16px' }}
-          />
+          <div style={{ display: 'flex', gap: '10px', marginBottom: '10px' }}>
+            {(['male', 'female', 'other'] as Sex[]).map((option) => (
+              <button
+                key={option}
+                type="button"
+                onClick={() => setSex(option)}
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  fontSize: '16px',
+                  fontWeight: sex === option ? 'bold' : 'normal',
+                  backgroundColor: sex === option ? '#007bff' : '#f5f5f5',
+                  color: sex === option ? 'white' : '#333',
+                  border: sex === option ? '2px solid #007bff' : '2px solid #ddd',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  textTransform: 'capitalize',
+                  transition: 'all 0.2s',
+                }}
+              >
+                {option}
+              </button>
+            ))}
+          </div>
+          
+          {/* B3.2.1 - Optional text input when "other" is selected */}
+          {sex === 'other' && (
+            <div style={{ marginTop: '10px' }}>
+              <label htmlFor="sexOtherText" style={{ display: 'block', marginBottom: '5px', fontSize: '14px', color: '#666' }}>
+                Additional information (optional)
+              </label>
+              <input
+                id="sexOtherText"
+                type="text"
+                value={sexOtherText}
+                onChange={(e) => setSexOtherText(e.target.value)}
+                placeholder="e.g., non-binary, prefer not to say"
+                style={{ width: '100%', padding: '8px', fontSize: '16px' }}
+              />
+            </div>
+          )}
         </div>
 
         {/* B3.1.3 - Bodyweight input in selected units */}

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useCurrentBaselineOneRm, useUserProfile, useUnitSystem } from '../hooks';
 import { testedOneRmRepository } from '../storage';
 import type { LiftType } from '../domain';
-import { LIFT_DISPLAY_NAMES } from '../domain';
+import { LIFT_DISPLAY_NAMES, getProfileSex } from '../domain';
 import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
 import { calculateOneRmRatio } from '../domain';
 import { formatWeight, getUnitLabel } from '../utils';
@@ -110,11 +110,14 @@ export function DashboardScreen() {
     
     if (hasResult && profile) {
       try {
+        // B3.2.1 - Use getProfileSex helper for backward compatibility
+        const sexValue = getProfileSex(profile);
+        const gender = (sexValue === "male" || sexValue === "female") ? sexValue : "male";
+        
         // Use universal getStrengthCategory function (B2.5.2)
-        const gender = profile.gender.toLowerCase().trim() as "male" | "female";
         const categoryLabel = getStrengthCategory(
           liftType,
-          gender === "male" || gender === "female" ? gender : "male", // Default to male if invalid
+          gender,
           result.result!.baselineOneRm,
           profile.bodyweight
         );

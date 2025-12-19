@@ -21,8 +21,8 @@ export type { LiftType } from './LiftType';
 export { LIFT_DISPLAY_NAMES, getLiftDisplayName, isLiftType } from './LiftType';
 
 // UserProfile
-export type { UserProfile } from './UserProfile';
-export { createUserProfile, isUserProfile } from './UserProfile';
+export type { UserProfile, Sex } from './UserProfile';
+export { createUserProfile, createUserProfileLegacy, isUserProfile, migrateUserProfile, getProfileSex } from './UserProfile';
 
 // TrainingSet (replaces BenchSet)
 export type { TrainingSet } from './TrainingSet';

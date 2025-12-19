@@ -1,4 +1,5 @@
 import type { BenchSet, TestedOneRm, UserProfile, StrengthCategory, LiftType } from '../domain';
+import { getProfileSex } from '../domain';
 import { estimateBaselineOneRm, type BaselineOneRmEstimate } from './estimateBaselineOneRm';
 import { getStrengthCategoryForGender } from './strengthCategory';
 
@@ -78,12 +79,14 @@ export function estimateOneRmWithCategory(
   
   // Only calculate strength category if we have a valid 1RM
   // GUARDRAIL: Pass liftType to ensure lift-specific thresholds are used
+  // B3.2.1 - Use getProfileSex helper for backward compatibility
+  const sexValue = getProfileSex(profile);
   const strengthCategory = oneRmForCategory > 0
     ? getStrengthCategoryForGender(
         liftType,
         oneRmForCategory,
         profile.bodyweight,
-        profile.gender
+        sexValue
       )
     : {
         category: 'novice' as const,

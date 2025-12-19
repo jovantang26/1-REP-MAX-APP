@@ -1,5 +1,5 @@
 import type { UserProfile } from '../domain';
-import { isUserProfile } from '../domain';
+import { isUserProfile, migrateUserProfile } from '../domain';
 import { STORAGE_KEYS, getStorageItem, setStorageItem, removeStorageItem, serializeDate, deserializeDate } from './storageUtils';
 
 /**
@@ -12,6 +12,7 @@ export class ProfileRepository {
 
   /**
    * Retrieves the user profile from storage.
+   * B3.2.1 - Automatically migrates legacy profiles (with gender) to new format (with sex).
    * @returns The user profile, or null if no profile exists
    */
   async getProfile(): Promise<UserProfile | null> {
@@ -28,7 +29,7 @@ export class ProfileRepository {
     }
 
     // Convert date strings back to Date objects
-    const profile: UserProfile = {
+    let profile: UserProfile = {
       ...stored,
       dateCreated: stored.dateCreated 
         ? (typeof stored.dateCreated === 'string' 
@@ -41,6 +42,14 @@ export class ProfileRepository {
           : stored.lastUpdated)
         : undefined,
     };
+
+    // B3.2.1 - Migrate legacy profile to new format
+    profile = migrateUserProfile(profile);
+    
+    // If migration occurred, save the migrated profile back to storage
+    if (!stored.sex && profile.sex) {
+      await this.saveProfile(profile);
+    }
 
     return profile;
   }
