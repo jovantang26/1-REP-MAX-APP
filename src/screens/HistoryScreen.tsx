@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useOneRmHistory, useUnitSystem } from '../hooks';
-import type { LiftType } from '../domain';
+import type { LiftType, TestedPrAnchor } from '../domain';
 import { LIFT_DISPLAY_NAMES } from '../domain';
 import { formatWeight, getUnitLabel } from '../utils';
+import { testedPrAnchorRepository } from '../storage';
 
 /**
  * 1RM History / Graph Screen (B2.3.3 - Multi-Lift History Filter)
@@ -23,6 +24,17 @@ export function HistoryScreen() {
   const [selectedLiftType, setSelectedLiftType] = useState<LiftType>('bench');
   const { unitSystem } = useUnitSystem();
   const { dataPoints, stats, loading, error } = useOneRmHistory(selectedLiftType);
+  
+  // B3.5.3 - Load PR anchor for selected lift
+  const [prAnchor, setPrAnchor] = useState<TestedPrAnchor | null>(null);
+  
+  useEffect(() => {
+    const loadPrAnchor = async () => {
+      const anchor = await testedPrAnchorRepository.getPrAnchorByLiftType(selectedLiftType);
+      setPrAnchor(anchor);
+    };
+    loadPrAnchor();
+  }, [selectedLiftType]);
 
   if (loading) {
     return (
@@ -47,6 +59,7 @@ export function HistoryScreen() {
       <h1>1RM History</h1>
       
       {/* B2.3.3: Lift Filter Tabs */}
+      {/* B3.5.3 - Include powerclean in tabs */}
       <div style={{ 
         display: 'flex', 
         gap: '10px', 
@@ -54,7 +67,7 @@ export function HistoryScreen() {
         borderBottom: '2px solid #ddd',
         paddingBottom: '10px'
       }}>
-        {(['bench', 'squat', 'deadlift'] as LiftType[]).map((liftType) => (
+        {(['bench', 'squat', 'deadlift', 'powerclean'] as LiftType[]).map((liftType) => (
           <button
             key={liftType}
             onClick={() => setSelectedLiftType(liftType)}
@@ -102,7 +115,39 @@ export function HistoryScreen() {
         </p>
         {dataPoints.length > 0 && (
           <div style={{ marginTop: '20px', fontSize: '14px', color: '#666' }}>
-            <p>Graph visualization will appear here showing your 1RM estimates and tested values over time.</p>
+            <p>Graph visualization will appear here showing:</p>
+            <ul style={{ textAlign: 'left', display: 'inline-block', marginTop: '10px' }}>
+              <li>90-day estimate curve (blue line)</li>
+              <li>Tested 1RM points (red dots)</li>
+              {prAnchor && (
+                <li style={{ color: '#28a745', fontWeight: 'bold' }}>
+                  PR Anchor: {formatWeight(prAnchor.bestTested1Rm, unitSystem, 1)} {getUnitLabel(unitSystem)} (green star marker)
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+        {/* B3.5.3 - Show PR anchor info if available */}
+        {prAnchor && (
+          <div style={{ 
+            marginTop: '20px', 
+            padding: '15px', 
+            backgroundColor: '#e7f3ff', 
+            borderRadius: '8px',
+            border: '2px solid #28a745'
+          }}>
+            <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#28a745', marginBottom: '5px' }}>
+              ⭐ Personal Record (PR Anchor)
+            </div>
+            <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#333' }}>
+              {formatWeight(prAnchor.bestTested1Rm, unitSystem, 1)} {getUnitLabel(unitSystem)}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
+              Achieved: {new Date(prAnchor.dateAchieved).toLocaleDateString()}
+            </div>
+            <div style={{ fontSize: '12px', color: '#666', marginTop: '5px', fontStyle: 'italic' }}>
+              This is your best tested 1RM and will be marked distinctly on the graph.
+            </div>
           </div>
         )}
       </div>
