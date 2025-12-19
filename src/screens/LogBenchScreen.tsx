@@ -36,6 +36,12 @@ export function LogBenchScreen() {
 
   // B3.3.1 - Session mode state: array of in-progress set rows
   const [sessionRows, setSessionRows] = useState<SessionSetRow[]>([createEmptySessionSetRow()]);
+  
+  // B3.3.2 - Quick Add mode state
+  const [mode, setMode] = useState<'session' | 'quick'>('session');
+  const [quickAddWeight, setQuickAddWeight] = useState<string>('');
+  const [quickAddReps, setQuickAddReps] = useState<string>('');
+  const [quickAddRir, setQuickAddRir] = useState<string>('0');
 
   // Load today's sets for the selected lift type
   React.useEffect(() => {
@@ -74,6 +80,36 @@ export function LogBenchScreen() {
   // B3.3.1 - Add a new empty row
   const addRow = () => {
     setSessionRows((prev) => [...prev, createEmptySessionSetRow()]);
+  };
+
+  // B3.3.3 - Add X number of empty rows
+  const addMultipleRows = (count: number) => {
+    if (count <= 0 || count > 20) {
+      alert('Please enter a number between 1 and 20');
+      return;
+    }
+    const newRows = Array.from({ length: count }, () => createEmptySessionSetRow());
+    setSessionRows((prev) => [...prev, ...newRows]);
+  };
+
+  // B3.3.3 - Copy previous set values to current row
+  const copyPreviousSet = (rowId: string) => {
+    setSessionRows((prev) => {
+      const rowIndex = prev.findIndex((row) => row.id === rowId);
+      if (rowIndex <= 0) return prev; // Can't copy if it's the first row or not found
+      
+      const previousRow = prev[rowIndex - 1];
+      return prev.map((row) =>
+        row.id === rowId
+          ? {
+              ...row,
+              weight: previousRow.weight,
+              reps: previousRow.reps,
+              rir: previousRow.rir,
+            }
+          : row
+      );
+    });
   };
 
   // B3.3.1 - Remove a row
@@ -157,6 +193,53 @@ export function LogBenchScreen() {
     clearSession();
   };
 
+  // B3.3.2 - Quick Add: Log single set immediately
+  const handleQuickAdd = async () => {
+    if (!quickAddWeight || !quickAddReps) {
+      alert('Please enter weight and reps');
+      return;
+    }
+
+    try {
+      // Validate and convert to kg
+      const weightInKg = parseWeightInput(quickAddWeight.trim(), unitSystem);
+      const reps = parseInt(quickAddReps.trim(), 10);
+      const rir = parseInt(quickAddRir.trim(), 10);
+
+      if (isNaN(reps) || reps <= 0) {
+        alert('Reps must be a positive integer');
+        return;
+      }
+      if (isNaN(rir) || rir < 0) {
+        alert('RIR must be a non-negative integer');
+        return;
+      }
+
+      // Add to session and save immediately
+      clearSession();
+      addSetToSession(weightInKg, reps, rir);
+      const saved = await saveSession();
+
+      if (saved) {
+        // Reload today's sets
+        const allSets = await benchSetRepository.getBenchSets();
+        const now = new Date();
+        const todaySets = filterSetsByDateRange(allSets, 1, now);
+        const filteredByLift = todaySets.filter((set) => set.liftType === selectedLiftType);
+        setTodaySets(filteredByLift);
+
+        // Clear quick add form
+        setQuickAddWeight('');
+        setQuickAddReps('');
+        setQuickAddRir('0');
+      } else {
+        alert('Failed to save set. Please try again.');
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save set. Please check your inputs.');
+    }
+  };
+
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Log Training Session</h1>
@@ -193,24 +276,174 @@ export function LogBenchScreen() {
         ))}
       </div>
 
+      {/* B3.3.2 - Mode selector: Session vs Quick Add */}
+      <div style={{ 
+        display: 'flex', 
+        gap: '10px', 
+        marginBottom: '20px',
+        borderBottom: '2px solid #ddd',
+        paddingBottom: '10px'
+      }}>
+        <button
+          onClick={() => setMode('session')}
+          style={{
+            flex: 1,
+            padding: '10px',
+            fontSize: '16px',
+            fontWeight: mode === 'session' ? 'bold' : 'normal',
+            backgroundColor: mode === 'session' ? '#007bff' : '#f5f5f5',
+            color: mode === 'session' ? 'white' : '#333',
+            border: mode === 'session' ? '2px solid #007bff' : '2px solid #ddd',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          Session Mode
+        </button>
+        <button
+          onClick={() => setMode('quick')}
+          style={{
+            flex: 1,
+            padding: '10px',
+            fontSize: '16px',
+            fontWeight: mode === 'quick' ? 'bold' : 'normal',
+            backgroundColor: mode === 'quick' ? '#007bff' : '#f5f5f5',
+            color: mode === 'quick' ? 'white' : '#333',
+            border: mode === 'quick' ? '2px solid #007bff' : '2px solid #ddd',
+            borderRadius: '8px',
+            cursor: 'pointer',
+          }}
+        >
+          Quick Add
+        </button>
+      </div>
+
+      {/* B3.3.2 - Quick Add Mode */}
+      {mode === 'quick' && (
+        <div style={{ marginBottom: '30px', padding: '20px', backgroundColor: '#f9f9f9', borderRadius: '8px' }}>
+          <h2 style={{ marginTop: 0, marginBottom: '15px' }}>Quick Add - {LIFT_DISPLAY_NAMES[selectedLiftType]}</h2>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '10px', marginBottom: '10px' }}>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
+                Weight ({getUnitLabel(unitSystem)})
+              </label>
+              <input
+                type="number"
+                step="0.1"
+                min="0.1"
+                value={quickAddWeight}
+                onChange={(e) => setQuickAddWeight(e.target.value)}
+                placeholder="0.0"
+                style={{ width: '100%', padding: '8px', fontSize: '16px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
+                Reps
+              </label>
+              <input
+                type="number"
+                min="1"
+                value={quickAddReps}
+                onChange={(e) => setQuickAddReps(e.target.value)}
+                placeholder="0"
+                style={{ width: '100%', padding: '8px', fontSize: '16px' }}
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
+                RIR
+              </label>
+              <input
+                type="number"
+                min="0"
+                value={quickAddRir}
+                onChange={(e) => setQuickAddRir(e.target.value)}
+                placeholder="0"
+                style={{ width: '100%', padding: '8px', fontSize: '16px' }}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+              <button
+                onClick={handleQuickAdd}
+                disabled={saving}
+                style={{
+                  padding: '8px 16px',
+                  fontSize: '16px',
+                  backgroundColor: saving ? '#6c757d' : '#28a745',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: saving ? 'not-allowed' : 'pointer',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {saving ? 'Saving...' : 'Add Set'}
+              </button>
+            </div>
+          </div>
+          <p style={{ fontSize: '12px', color: '#666', margin: 0 }}>
+            Quick Add logs a single set immediately without session mode.
+          </p>
+        </div>
+      )}
+
       {/* B3.3.1 - Session Mode: Editable set rows table */}
+      {mode === 'session' && (
       <div style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '10px' }}>
           <h2 style={{ margin: 0 }}>Session Sets - {LIFT_DISPLAY_NAMES[selectedLiftType]}</h2>
-          <button
-            onClick={addRow}
-            style={{
-              padding: '8px 16px',
-              fontSize: '14px',
-              backgroundColor: '#28a745',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-            }}
-          >
-            + Add Row
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {/* B3.3.3 - Add X sets control */}
+            <div style={{ display: 'flex', gap: '5px', alignItems: 'center' }}>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                defaultValue="1"
+                id="addSetsCount"
+                style={{ 
+                  width: '60px', 
+                  padding: '6px', 
+                  fontSize: '14px',
+                  border: '1px solid #ddd',
+                  borderRadius: '4px'
+                }}
+              />
+              <button
+                onClick={() => {
+                  const countInput = document.getElementById('addSetsCount') as HTMLInputElement;
+                  const count = parseInt(countInput?.value || '1', 10);
+                  addMultipleRows(count);
+                }}
+                style={{
+                  padding: '6px 12px',
+                  fontSize: '14px',
+                  backgroundColor: '#17a2b8',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                }}
+              >
+                Add Sets
+              </button>
+            </div>
+            <button
+              onClick={addRow}
+              style={{
+                padding: '8px 16px',
+                fontSize: '14px',
+                backgroundColor: '#28a745',
+                color: 'white',
+                border: 'none',
+                borderRadius: '4px',
+                cursor: 'pointer',
+              }}
+            >
+              + Add Row
+            </button>
+          </div>
         </div>
 
         <div style={{ 
@@ -292,21 +525,41 @@ export function LogBenchScreen() {
                         {row.errorMessage}
                       </div>
                     )}
-                    <button
-                      onClick={() => removeRow(row.id)}
-                      disabled={sessionRows.length === 1}
-                      style={{
-                        padding: '4px 8px',
-                        fontSize: '12px',
-                        backgroundColor: sessionRows.length === 1 ? '#6c757d' : '#dc3545',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: sessionRows.length === 1 ? 'not-allowed' : 'pointer',
-                      }}
-                    >
-                      Remove
-                    </button>
+                    <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
+                      {/* B3.3.3 - Copy previous set button */}
+                      {sessionRows.indexOf(row) > 0 && (
+                        <button
+                          onClick={() => copyPreviousSet(row.id)}
+                          style={{
+                            padding: '4px 8px',
+                            fontSize: '12px',
+                            backgroundColor: '#17a2b8',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            cursor: 'pointer',
+                          }}
+                          title="Copy previous set values"
+                        >
+                          Copy
+                        </button>
+                      )}
+                      <button
+                        onClick={() => removeRow(row.id)}
+                        disabled={sessionRows.length === 1}
+                        style={{
+                          padding: '4px 8px',
+                          fontSize: '12px',
+                          backgroundColor: sessionRows.length === 1 ? '#6c757d' : '#dc3545',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: sessionRows.length === 1 ? 'not-allowed' : 'pointer',
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -314,6 +567,7 @@ export function LogBenchScreen() {
           </table>
         </div>
       </div>
+      )}
 
       {/* B2.3.1: Show only today's sets for selected liftType */}
       {todaySets.length > 0 && (
@@ -348,7 +602,8 @@ export function LogBenchScreen() {
         </div>
       )}
 
-      {/* B3.3.1 - Session actions */}
+      {/* B3.3.1 - Session actions (only show in session mode) */}
+      {mode === 'session' && (
       <div style={{ display: 'flex', gap: '10px' }}>
         <button
           onClick={handleClearSession}
@@ -383,6 +638,7 @@ export function LogBenchScreen() {
           {saving ? 'Saving...' : 'Save Session'}
         </button>
       </div>
+      )}
     </div>
   );
 }
