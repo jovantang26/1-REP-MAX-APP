@@ -70,3 +70,7 @@ export {
   isStrengthCategory,
 } from './StrengthCategory';
 
+// UnitSystem
+export type { UnitSystem } from './UnitSystem';
+export { isUnitSystem } from './UnitSystem';
+

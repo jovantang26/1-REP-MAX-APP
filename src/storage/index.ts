@@ -29,6 +29,9 @@ export {
 // ProfileRepository
 export { ProfileRepository, profileRepository } from './ProfileRepository';
 
+// PreferencesRepository
+export { PreferencesRepository, preferencesRepository } from './PreferencesRepository';
+
 // BenchSetRepository
 export { BenchSetRepository, benchSetRepository } from './BenchSetRepository';
 

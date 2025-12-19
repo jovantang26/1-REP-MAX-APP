@@ -6,6 +6,7 @@
  */
 
 export { useUserProfile } from './useUserProfile';
+export { useUnitSystem } from './useUnitSystem';
 export { useBenchLoggingSession } from './useBenchLoggingSession';
 export { useCurrentBaselineOneRm } from './useCurrentBaselineOneRm';
 export { useOneRmHistory } from './useOneRmHistory';

@@ -34,6 +34,8 @@ export const STORAGE_KEYS = {
   ONE_RM_ESTIMATES: '1rm_app_one_rm_estimates',
   /** Migration flag to track if data migration has been completed */
   MIGRATION_COMPLETE: '1rm_app_migration_complete',
+  /** User preferences (unit system, etc.) */
+  PREFERENCES: '1rm_app_preferences',
 } as const;
 
 /**
