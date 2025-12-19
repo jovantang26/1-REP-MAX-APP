@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useUserProfile } from '../hooks';
+import { useUserProfile, useUnitSystem } from '../hooks';
 import { createUserProfile, type LiftType } from '../domain';
 import { createTestedOneRm } from '../domain';
 import { testedOneRmRepository } from '../storage';
+import { formatWeightAsNumber, parseWeightInput, getUnitLabel } from '../utils';
 
 /**
  * Onboarding / Profile Setup Screen
@@ -17,6 +18,7 @@ import { testedOneRmRepository } from '../storage';
 export function OnboardingScreen() {
   const navigate = useNavigate();
   const { profile, saveProfile } = useUserProfile();
+  const { unitSystem } = useUnitSystem();
   const [age, setAge] = useState<string>('');
   const [gender, setGender] = useState<string>('');
   const [bodyweight, setBodyweight] = useState<string>('');
@@ -24,40 +26,39 @@ export function OnboardingScreen() {
   const [saving, setSaving] = useState<boolean>(false);
 
   // Pre-fill form if profile exists
+  // B3.1.3 - Convert stored kg values to display units
   React.useEffect(() => {
     if (profile) {
       setAge(profile.age.toString());
       setGender(profile.gender);
-      setBodyweight(profile.bodyweight.toString());
+      // Convert bodyweight from kg to display units
+      setBodyweight(formatWeightAsNumber(profile.bodyweight, unitSystem).toString());
     }
-  }, [profile]);
+  }, [profile, unitSystem]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
 
     try {
-      // Create and save profile
+      // B3.1.3 - Parse bodyweight input and convert to kg for storage
+      const bodyweightInKg = parseWeightInput(bodyweight, unitSystem);
+      
+      // Create and save profile (bodyweight is now in kg)
       const newProfile = createUserProfile(
         parseInt(age, 10),
         gender,
-        parseFloat(bodyweight)
+        bodyweightInKg
       );
       
       const saved = await saveProfile(newProfile);
 
       // If user provided a known 1RM, save it as a tested 1RM
       if (knownOneRm && knownOneRm.trim() !== '') {
-        const trimmed = knownOneRm.trim();
-        const weight = parseFloat(trimmed);
-        
-        if (isNaN(weight) || !isFinite(weight) || weight <= 0) {
-          alert(`Please enter a valid positive number for 1RM. You entered: "${trimmed}"`);
-          setSaving(false);
-          return;
-        }
-        
         try {
+          // B3.1.3 - Parse 1RM input and convert to kg for storage
+          const weightInKg = parseWeightInput(knownOneRm.trim(), unitSystem);
+          
           // Default to 30 days ago since this is a "last tested" value, not tested today
           // This prevents the algorithm from over-weighting an old PR as if it was tested today
           const testedDate = new Date();
@@ -72,12 +73,12 @@ export function OnboardingScreen() {
             `tested_${Date.now()}`,
             liftType,
             testedDate,
-            weight
+            weightInKg // Weight is now in kg
           );
           await testedOneRmRepository.addTestedOneRm(tested1Rm);
         } catch (error) {
           console.error('Error creating tested 1RM:', error);
-          alert(`Failed to save 1RM: ${error instanceof Error ? error.message : 'Unknown error'}`);
+          alert(error instanceof Error ? error.message : 'Failed to save 1RM. Please check your input.');
           setSaving(false);
           return;
         }
@@ -130,9 +131,10 @@ export function OnboardingScreen() {
           />
         </div>
 
+        {/* B3.1.3 - Bodyweight input in selected units */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="bodyweight" style={{ display: 'block', marginBottom: '5px' }}>
-            Bodyweight (kg)
+            Bodyweight ({getUnitLabel(unitSystem)})
           </label>
           <input
             id="bodyweight"
@@ -145,9 +147,10 @@ export function OnboardingScreen() {
           />
         </div>
 
+        {/* B3.1.3 - Known 1RM input in selected units */}
         <div style={{ marginBottom: '15px' }}>
           <label htmlFor="knownOneRm" style={{ display: 'block', marginBottom: '5px' }}>
-            Known 1RM (kg) <span style={{ color: '#666' }}>(optional)</span>
+            Known 1RM ({getUnitLabel(unitSystem)}) <span style={{ color: '#666' }}>(optional)</span>
           </label>
           <input
             id="knownOneRm"

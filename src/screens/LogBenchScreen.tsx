@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useBenchLoggingSession } from '../hooks';
+import { useBenchLoggingSession, useUnitSystem } from '../hooks';
 import type { LiftType } from '../domain';
 import { LIFT_DISPLAY_NAMES } from '../domain';
 import { benchSetRepository } from '../storage';
 import { filterSetsByDateRange } from '../estimation';
+import { formatWeightAsNumber, parseWeightInput, getUnitLabel } from '../utils';
 
 /**
  * Log Training Session Screen (B2.3.1 - Multi-Lift Logging)
@@ -28,6 +29,7 @@ export function LogBenchScreen() {
   const navigate = useNavigate();
   const [selectedLiftType, setSelectedLiftType] = useState<LiftType>('bench');
   const [todaySets, setTodaySets] = useState<any[]>([]);
+  const { unitSystem } = useUnitSystem();
   const {
     sessionSets,
     saving,
@@ -62,14 +64,11 @@ export function LogBenchScreen() {
     e.preventDefault();
     if (currentWeight && currentReps) {
       try {
-        const weight = parseFloat(currentWeight.trim());
+        // B3.1.3 - Parse user input and convert to kg for storage
+        const weightInKg = parseWeightInput(currentWeight.trim(), unitSystem);
         const reps = parseInt(currentReps.trim(), 10);
         const rir = parseInt(currentRir.trim(), 10);
         
-        if (isNaN(weight) || weight <= 0) {
-          alert('Weight must be a positive number');
-          return;
-        }
         if (isNaN(reps) || reps <= 0) {
           alert('Reps must be a positive integer');
           return;
@@ -79,12 +78,13 @@ export function LogBenchScreen() {
           return;
         }
         
-        addSetToSession(weight, reps, rir);
+        // Weight is now in kg (converted from user's input)
+        addSetToSession(weightInKg, reps, rir);
         setCurrentWeight('');
         setCurrentReps('');
         setCurrentRir('0');
       } catch (error) {
-        alert('Failed to add set. Please check your inputs.');
+        alert(error instanceof Error ? error.message : 'Failed to add set. Please check your inputs.');
       }
     }
   };
@@ -149,9 +149,10 @@ export function LogBenchScreen() {
       
       <form onSubmit={handleAddSet} style={{ marginBottom: '30px' }}>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '10px', marginBottom: '10px' }}>
+          {/* B3.1.3 - Weight input in selected units */}
           <div>
             <label htmlFor="weight" style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-              Weight (kg)
+              Weight ({getUnitLabel(unitSystem)})
             </label>
             <input
               id="weight"
@@ -225,10 +226,11 @@ export function LogBenchScreen() {
             maxHeight: '300px',
             overflowY: 'auto'
           }}>
+            {/* B3.1.3 - Display weights in selected units */}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #ddd' }}>
-                  <th style={{ textAlign: 'left', padding: '8px' }}>Weight (kg)</th>
+                  <th style={{ textAlign: 'left', padding: '8px' }}>Weight ({getUnitLabel(unitSystem)})</th>
                   <th style={{ textAlign: 'left', padding: '8px' }}>Reps</th>
                   <th style={{ textAlign: 'left', padding: '8px' }}>RIR</th>
                   <th style={{ textAlign: 'left', padding: '8px' }}>Actions</th>
@@ -237,7 +239,7 @@ export function LogBenchScreen() {
               <tbody>
                 {allTodaySets.map((set) => (
                   <tr key={set.id} style={{ borderBottom: '1px solid #eee' }}>
-                    <td style={{ padding: '8px' }}>{set.weight}</td>
+                    <td style={{ padding: '8px' }}>{formatWeightAsNumber(set.weight, unitSystem).toFixed(1)}</td>
                     <td style={{ padding: '8px' }}>{set.reps}</td>
                     <td style={{ padding: '8px' }}>{set.rir}</td>
                     <td style={{ padding: '8px' }}>

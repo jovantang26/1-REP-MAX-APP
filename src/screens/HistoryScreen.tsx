@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { useOneRmHistory } from '../hooks';
+import { useOneRmHistory, useUnitSystem } from '../hooks';
 import type { LiftType } from '../domain';
 import { LIFT_DISPLAY_NAMES } from '../domain';
+import { formatWeight, getUnitLabel } from '../utils';
 
 /**
  * 1RM History / Graph Screen (B2.3.3 - Multi-Lift History Filter)
@@ -20,6 +21,7 @@ import { LIFT_DISPLAY_NAMES } from '../domain';
  */
 export function HistoryScreen() {
   const [selectedLiftType, setSelectedLiftType] = useState<LiftType>('bench');
+  const { unitSystem } = useUnitSystem();
   const { dataPoints, stats, loading, error } = useOneRmHistory(selectedLiftType);
 
   if (loading) {
@@ -111,6 +113,7 @@ export function HistoryScreen() {
         gap: '15px',
         marginTop: '20px'
       }}>
+        {/* B3.1.3 - Format stats in selected units */}
         <div style={{ 
           backgroundColor: '#f5f5f5', 
           padding: '20px', 
@@ -118,7 +121,9 @@ export function HistoryScreen() {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-            {stats.current1Rm !== null ? `${stats.current1Rm.toFixed(1)} kg` : '--'}
+            {stats.current1Rm !== null 
+              ? `${formatWeight(stats.current1Rm, unitSystem, 1)} ${getUnitLabel(unitSystem)}` 
+              : '--'}
           </div>
           <div style={{ color: '#666', fontSize: '14px' }}>Current 1RM</div>
         </div>
@@ -130,7 +135,9 @@ export function HistoryScreen() {
           textAlign: 'center'
         }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
-            {stats.best1Rm !== null ? `${stats.best1Rm.toFixed(1)} kg` : '--'}
+            {stats.best1Rm !== null 
+              ? `${formatWeight(stats.best1Rm, unitSystem, 1)} ${getUnitLabel(unitSystem)}` 
+              : '--'}
           </div>
           <div style={{ color: '#666', fontSize: '14px' }}>Best 1RM</div>
         </div>
@@ -143,7 +150,7 @@ export function HistoryScreen() {
         }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '5px' }}>
             {stats.progress30d !== null 
-              ? `${stats.progress30d >= 0 ? '+' : ''}${stats.progress30d.toFixed(1)} kg`
+              ? `${stats.progress30d >= 0 ? '+' : '-'}${formatWeight(Math.abs(stats.progress30d), unitSystem, 1)} ${getUnitLabel(unitSystem)}`
               : '--'}
           </div>
           <div style={{ color: '#666', fontSize: '14px' }}>Progress (30d)</div>

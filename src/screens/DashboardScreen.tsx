@@ -1,11 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useCurrentBaselineOneRm, useUserProfile } from '../hooks';
+import { useCurrentBaselineOneRm, useUserProfile, useUnitSystem } from '../hooks';
 import { testedOneRmRepository } from '../storage';
 import type { LiftType } from '../domain';
 import { LIFT_DISPLAY_NAMES } from '../domain';
 import { getStrengthCategoryForGender, getStrengthCategory } from '../estimation/strengthCategory';
 import { calculateOneRmRatio } from '../domain';
+import { formatWeight, getUnitLabel } from '../utils';
 
 /**
  * Home / Dashboard Screen (B2.3.2 - Multi-Lift Dashboard)
@@ -24,6 +25,7 @@ import { calculateOneRmRatio } from '../domain';
 export function DashboardScreen() {
   const navigate = useNavigate();
   const { profile } = useUserProfile();
+  const { unitSystem } = useUnitSystem();
   
   // Load data for all three lifts
   const benchResult = useCurrentBaselineOneRm('bench');
@@ -163,12 +165,14 @@ export function DashboardScreen() {
 
         {!isLoading && !hasError && hasResult && (
           <>
+            {/* B3.1.3 - Format baseline 1RM in selected units */}
             <div style={{ fontSize: '32px', fontWeight: 'bold', marginBottom: '10px', color: '#007bff' }}>
-              {result.result!.baselineOneRm.toFixed(1)} kg
+              {formatWeight(result.result!.baselineOneRm, unitSystem, 1)} {getUnitLabel(unitSystem)}
             </div>
             
+            {/* B3.1.3 - Format uncertainty range in selected units */}
             <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
-              Uncertainty: {result.result!.uncertaintyRange.low.toFixed(1)} - {result.result!.uncertaintyRange.high.toFixed(1)} kg
+              Uncertainty: {formatWeight(result.result!.uncertaintyRange.low, unitSystem, 1)} - {formatWeight(result.result!.uncertaintyRange.high, unitSystem, 1)} {getUnitLabel(unitSystem)}
             </div>
             
             <div style={{ color: '#666', marginBottom: '8px', fontSize: '14px' }}>
@@ -188,9 +192,10 @@ export function DashboardScreen() {
               </div>
             )}
 
+            {/* B3.1.3 - Format tested 1RM in selected units */}
             {lastTested && (
               <div style={{ color: '#666', fontSize: '14px', marginTop: '10px', paddingTop: '10px', borderTop: '1px solid #ddd' }}>
-                Last Tested: <strong>{lastTested.weight.toFixed(1)} kg</strong>
+                Last Tested: <strong>{formatWeight(lastTested.weight, unitSystem, 1)} {getUnitLabel(unitSystem)}</strong>
                 <br />
                 <span style={{ fontSize: '12px', color: '#999' }}>
                   {lastTested.date.toLocaleDateString()}

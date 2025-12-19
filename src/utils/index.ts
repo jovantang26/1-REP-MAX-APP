@@ -3,4 +3,5 @@
  */
 
 export { lbsToKg, kgToLbs } from './unitConversion';
+export { formatWeight, formatWeightAsNumber, parseWeightInput, getUnitLabel } from './weightFormatting';
 
