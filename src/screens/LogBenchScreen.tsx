@@ -2,28 +2,25 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useBenchLoggingSession, useUnitSystem } from '../hooks';
 import type { LiftType } from '../domain';
-import { LIFT_DISPLAY_NAMES } from '../domain';
+import { LIFT_DISPLAY_NAMES, createEmptySessionSetRow, validateSessionSetRow, type SessionSetRow } from '../domain';
 import { benchSetRepository } from '../storage';
 import { filterSetsByDateRange } from '../estimation';
 import { formatWeightAsNumber, parseWeightInput, getUnitLabel } from '../utils';
 
 /**
- * Log Training Session Screen (B2.3.1 - Multi-Lift Logging)
+ * Log Training Session Screen (B3.3.1 - Session Mode Design)
  * 
- * Allows users to log sets for Bench, Squat, or Deadlift with:
- * - Lift selector (tabs at top)
- * - Weight
- * - Reps
- * - RIR (Reps in Reserve)
+ * B3.3.1 - Hevy-style session logging:
+ * - Session mode with multiple editable set rows
+ * - Each row has weight, reps, RIR inputs
+ * - Can add/remove rows
+ * - On save: validate all rows, convert to kg, persist, end session
  * 
- * UX RULES (B2.3.1):
+ * UX RULES:
  * - Lift selector at top (Bench | Squat | Deadlift)
- * - Form stays the same regardless of selected lift
- * - List below shows ONLY today's sets for the selected liftType
- * - Each logged set MUST include liftType
- * - UI never mixes lifts in the same list
- * 
- * Includes ability to add multiple sets and end the session.
+ * - Session rows table below
+ * - Today's sets shown separately
+ * - Per-lift filtering maintained
  */
 export function LogBenchScreen() {
   const navigate = useNavigate();
@@ -31,13 +28,14 @@ export function LogBenchScreen() {
   const [todaySets, setTodaySets] = useState<any[]>([]);
   const { unitSystem } = useUnitSystem();
   const {
-    sessionSets,
     saving,
     addSetToSession,
-    removeSetFromSession,
     saveSession,
     clearSession,
   } = useBenchLoggingSession(selectedLiftType);
+
+  // B3.3.1 - Session mode state: array of in-progress set rows
+  const [sessionRows, setSessionRows] = useState<SessionSetRow[]>([createEmptySessionSetRow()]);
 
   // Load today's sets for the selected lift type
   React.useEffect(() => {
@@ -55,63 +53,112 @@ export function LogBenchScreen() {
     };
     loadTodaySets();
   }, [selectedLiftType]);
-  
-  const [currentWeight, setCurrentWeight] = useState<string>('');
-  const [currentReps, setCurrentReps] = useState<string>('');
-  const [currentRir, setCurrentRir] = useState<string>('0');
 
-  const handleAddSet = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (currentWeight && currentReps) {
-      try {
-        // B3.1.3 - Parse user input and convert to kg for storage
-        const weightInKg = parseWeightInput(currentWeight.trim(), unitSystem);
-        const reps = parseInt(currentReps.trim(), 10);
-        const rir = parseInt(currentRir.trim(), 10);
-        
-        if (isNaN(reps) || reps <= 0) {
-          alert('Reps must be a positive integer');
-          return;
-        }
-        if (isNaN(rir) || rir < 0) {
-          alert('RIR must be a non-negative integer');
-          return;
-        }
-        
-        // Weight is now in kg (converted from user's input)
-        addSetToSession(weightInKg, reps, rir);
-        setCurrentWeight('');
-        setCurrentReps('');
-        setCurrentRir('0');
-      } catch (error) {
-        alert(error instanceof Error ? error.message : 'Failed to add set. Please check your inputs.');
+  // B3.3.1 - Clear session rows when lift type changes
+  React.useEffect(() => {
+    setSessionRows([createEmptySessionSetRow()]);
+    clearSession();
+  }, [selectedLiftType, clearSession]);
+
+  // B3.3.1 - Update a row's field value
+  const updateRowField = (rowId: string, field: 'weight' | 'reps' | 'rir', value: string) => {
+    setSessionRows((prev) =>
+      prev.map((row) =>
+        row.id === rowId
+          ? { ...row, [field]: value, hasError: false, errorMessage: undefined }
+          : row
+      )
+    );
+  };
+
+  // B3.3.1 - Add a new empty row
+  const addRow = () => {
+    setSessionRows((prev) => [...prev, createEmptySessionSetRow()]);
+  };
+
+  // B3.3.1 - Remove a row
+  const removeRow = (rowId: string) => {
+    setSessionRows((prev) => {
+      const filtered = prev.filter((row) => row.id !== rowId);
+      // Always keep at least one row
+      return filtered.length === 0 ? [createEmptySessionSetRow()] : filtered;
+    });
+  };
+
+  // B3.3.1 - Save session: validate all rows, convert to kg, persist
+  const handleSaveSession = async () => {
+    // Validate all rows
+    const errors: string[] = [];
+    const validatedRows: SessionSetRow[] = [];
+
+    for (const row of sessionRows) {
+      const error = validateSessionSetRow(row, unitSystem);
+      if (error) {
+        errors.push(`Row ${sessionRows.indexOf(row) + 1}: ${error}`);
+        validatedRows.push({ ...row, hasError: true, errorMessage: error });
+      } else {
+        validatedRows.push(row);
       }
     }
-  };
 
-  const handleEndSession = async () => {
-    const saved = await saveSession();
-    if (saved) {
-      // Reload today's sets after saving
-      const allSets = await benchSetRepository.getBenchSets();
-      const now = new Date();
-      const todaySets = filterSetsByDateRange(allSets, 1, now);
-      const filteredByLift = todaySets.filter((set) => set.liftType === selectedLiftType);
-      setTodaySets(filteredByLift);
-      navigate('/dashboard');
-    } else {
-      alert('Failed to save session. Please try again.');
+    // Update rows with errors
+    if (errors.length > 0) {
+      setSessionRows(validatedRows);
+      alert(`Please fix the following errors:\n${errors.join('\n')}`);
+      return;
+    }
+
+    // Convert all rows to BenchSets and add to session
+    try {
+      clearSession(); // Clear any existing session sets
+      const timestamp = new Date();
+
+      for (const row of validatedRows) {
+        // Skip empty rows
+        if (!row.weight.trim() || !row.reps.trim()) {
+          continue;
+        }
+
+        // B3.1.3 - Parse and convert weight to kg
+        const weightInKg = parseWeightInput(row.weight.trim(), unitSystem);
+        const reps = parseInt(row.reps.trim(), 10);
+        const rir = parseInt(row.rir.trim(), 10);
+
+        // Add to session (will be persisted on saveSession)
+        addSetToSession(weightInKg, reps, rir, timestamp);
+      }
+
+      // Save all sets to storage
+      const saved = await saveSession();
+      if (saved) {
+        // Reload today's sets
+        const allSets = await benchSetRepository.getBenchSets();
+        const now = new Date();
+        const todaySets = filterSetsByDateRange(allSets, 1, now);
+        const filteredByLift = todaySets.filter((set) => set.liftType === selectedLiftType);
+        setTodaySets(filteredByLift);
+
+        // Reset session rows
+        setSessionRows([createEmptySessionSetRow()]);
+
+        // Navigate back to dashboard
+        navigate('/dashboard');
+      } else {
+        alert('Failed to save session. Please try again.');
+      }
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Failed to save session. Please check your inputs.');
     }
   };
 
-  // Combine session sets with today's sets (all for selected liftType)
-  const allTodaySets = [
-    ...todaySets,
-    ...sessionSets.filter((set) => set.liftType === selectedLiftType),
-  ];
+  // B3.3.1 - Clear session
+  const handleClearSession = () => {
+    setSessionRows([createEmptySessionSetRow()]);
+    clearSession();
+  };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '800px', margin: '0 auto' }}>
+    <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto' }}>
       <h1>Log Training Session</h1>
       
       {/* B2.3.1: Lift Selector */}
@@ -127,7 +174,6 @@ export function LogBenchScreen() {
             key={liftType}
             onClick={() => {
               setSelectedLiftType(liftType);
-              clearSession(); // Clear session when switching lifts
             }}
             style={{
               flex: 1,
@@ -146,79 +192,133 @@ export function LogBenchScreen() {
           </button>
         ))}
       </div>
-      
-      <form onSubmit={handleAddSet} style={{ marginBottom: '30px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '10px', marginBottom: '10px' }}>
-          {/* B3.1.3 - Weight input in selected units */}
-          <div>
-            <label htmlFor="weight" style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-              Weight ({getUnitLabel(unitSystem)})
-            </label>
-            <input
-              id="weight"
-              type="number"
-              step="0.1"
-              min="0.1"
-              value={currentWeight}
-              onChange={(e) => setCurrentWeight(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', fontSize: '16px' }}
-            />
-          </div>
 
-          <div>
-            <label htmlFor="reps" style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-              Reps
-            </label>
-            <input
-              id="reps"
-              type="number"
-              value={currentReps}
-              onChange={(e) => setCurrentReps(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', fontSize: '16px' }}
-            />
-          </div>
-
-          <div>
-            <label htmlFor="rir" style={{ display: 'block', marginBottom: '5px', fontSize: '14px' }}>
-              RIR
-            </label>
-            <input
-              id="rir"
-              type="number"
-              min="0"
-              value={currentRir}
-              onChange={(e) => setCurrentRir(e.target.value)}
-              required
-              style={{ width: '100%', padding: '8px', fontSize: '16px' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-            <button
-              type="submit"
-              style={{
-                padding: '8px 16px',
-                fontSize: '16px',
-                backgroundColor: '#007bff',
-                color: 'white',
-                border: 'none',
-                borderRadius: '4px',
-                cursor: 'pointer',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Add Set
-            </button>
-          </div>
+      {/* B3.3.1 - Session Mode: Editable set rows table */}
+      <div style={{ marginBottom: '30px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+          <h2 style={{ margin: 0 }}>Session Sets - {LIFT_DISPLAY_NAMES[selectedLiftType]}</h2>
+          <button
+            onClick={addRow}
+            style={{
+              padding: '8px 16px',
+              fontSize: '14px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            + Add Row
+          </button>
         </div>
-      </form>
+
+        <div style={{ 
+          backgroundColor: '#f5f5f5', 
+          padding: '15px', 
+          borderRadius: '8px',
+          overflowX: 'auto'
+        }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+            <thead>
+              <tr style={{ borderBottom: '2px solid #ddd' }}>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Weight ({getUnitLabel(unitSystem)})</th>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Reps</th>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>RIR</th>
+                <th style={{ textAlign: 'left', padding: '8px', fontSize: '14px' }}>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {sessionRows.map((row, index) => (
+                <tr 
+                  key={row.id} 
+                  style={{ 
+                    borderBottom: '1px solid #eee',
+                    backgroundColor: row.hasError ? '#ffe6e6' : 'transparent'
+                  }}
+                >
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="number"
+                      step="0.1"
+                      min="0.1"
+                      value={row.weight}
+                      onChange={(e) => updateRowField(row.id, 'weight', e.target.value)}
+                      placeholder="0.0"
+                      style={{ 
+                        width: '100%', 
+                        padding: '6px', 
+                        fontSize: '14px',
+                        border: row.hasError ? '2px solid #dc3545' : '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="number"
+                      min="1"
+                      value={row.reps}
+                      onChange={(e) => updateRowField(row.id, 'reps', e.target.value)}
+                      placeholder="0"
+                      style={{ 
+                        width: '100%', 
+                        padding: '6px', 
+                        fontSize: '14px',
+                        border: row.hasError ? '2px solid #dc3545' : '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    <input
+                      type="number"
+                      min="0"
+                      value={row.rir}
+                      onChange={(e) => updateRowField(row.id, 'rir', e.target.value)}
+                      placeholder="0"
+                      style={{ 
+                        width: '100%', 
+                        padding: '6px', 
+                        fontSize: '14px',
+                        border: row.hasError ? '2px solid #dc3545' : '1px solid #ddd',
+                        borderRadius: '4px'
+                      }}
+                    />
+                  </td>
+                  <td style={{ padding: '8px' }}>
+                    {row.hasError && (
+                      <div style={{ fontSize: '12px', color: '#dc3545', marginBottom: '4px' }}>
+                        {row.errorMessage}
+                      </div>
+                    )}
+                    <button
+                      onClick={() => removeRow(row.id)}
+                      disabled={sessionRows.length === 1}
+                      style={{
+                        padding: '4px 8px',
+                        fontSize: '12px',
+                        backgroundColor: sessionRows.length === 1 ? '#6c757d' : '#dc3545',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '4px',
+                        cursor: sessionRows.length === 1 ? 'not-allowed' : 'pointer',
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
       {/* B2.3.1: Show only today's sets for selected liftType */}
-      {allTodaySets.length > 0 && (
+      {todaySets.length > 0 && (
         <div style={{ marginBottom: '20px' }}>
-          <h3>Today's Sets - {LIFT_DISPLAY_NAMES[selectedLiftType]} ({allTodaySets.length})</h3>
+          <h3>Today's Saved Sets - {LIFT_DISPLAY_NAMES[selectedLiftType]} ({todaySets.length})</h3>
           <div style={{ 
             backgroundColor: '#f5f5f5', 
             padding: '15px', 
@@ -226,41 +326,20 @@ export function LogBenchScreen() {
             maxHeight: '300px',
             overflowY: 'auto'
           }}>
-            {/* B3.1.3 - Display weights in selected units */}
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: '2px solid #ddd' }}>
                   <th style={{ textAlign: 'left', padding: '8px' }}>Weight ({getUnitLabel(unitSystem)})</th>
                   <th style={{ textAlign: 'left', padding: '8px' }}>Reps</th>
                   <th style={{ textAlign: 'left', padding: '8px' }}>RIR</th>
-                  <th style={{ textAlign: 'left', padding: '8px' }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {allTodaySets.map((set) => (
+                {todaySets.map((set) => (
                   <tr key={set.id} style={{ borderBottom: '1px solid #eee' }}>
                     <td style={{ padding: '8px' }}>{formatWeightAsNumber(set.weight, unitSystem).toFixed(1)}</td>
                     <td style={{ padding: '8px' }}>{set.reps}</td>
                     <td style={{ padding: '8px' }}>{set.rir}</td>
-                    <td style={{ padding: '8px' }}>
-                      {/* Only allow removing sets from current session, not already saved sets */}
-                      {sessionSets.some((s) => s.id === set.id) && (
-                        <button
-                          onClick={() => removeSetFromSession(set.id)}
-                          style={{
-                            padding: '4px 8px',
-                            fontSize: '12px',
-                            backgroundColor: '#dc3545',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                          }}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -269,41 +348,41 @@ export function LogBenchScreen() {
         </div>
       )}
 
+      {/* B3.3.1 - Session actions */}
       <div style={{ display: 'flex', gap: '10px' }}>
         <button
-          onClick={clearSession}
-          disabled={saving || sessionSets.length === 0}
+          onClick={handleClearSession}
+          disabled={saving}
           style={{
             flex: 1,
             padding: '12px',
             fontSize: '16px',
-            backgroundColor: sessionSets.length === 0 ? '#6c757d' : '#6c757d',
+            backgroundColor: '#6c757d',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: sessionSets.length === 0 ? 'not-allowed' : 'pointer',
+            cursor: saving ? 'not-allowed' : 'pointer',
           }}
         >
           Clear Session
         </button>
         <button
-          onClick={handleEndSession}
-          disabled={saving || sessionSets.length === 0}
+          onClick={handleSaveSession}
+          disabled={saving}
           style={{
             flex: 2,
             padding: '12px',
             fontSize: '16px',
-            backgroundColor: saving || sessionSets.length === 0 ? '#6c757d' : '#28a745',
+            backgroundColor: saving ? '#6c757d' : '#28a745',
             color: 'white',
             border: 'none',
             borderRadius: '4px',
-            cursor: saving || sessionSets.length === 0 ? 'not-allowed' : 'pointer',
+            cursor: saving ? 'not-allowed' : 'pointer',
           }}
         >
-          {saving ? 'Saving...' : 'End Session'}
+          {saving ? 'Saving...' : 'Save Session'}
         </button>
       </div>
     </div>
   );
 }
-

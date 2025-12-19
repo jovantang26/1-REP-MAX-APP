@@ -24,6 +24,9 @@ export { LIFT_DISPLAY_NAMES, getLiftDisplayName, isLiftType } from './LiftType';
 export type { UserProfile, Sex } from './UserProfile';
 export { createUserProfile, createUserProfileLegacy, isUserProfile, migrateUserProfile, getProfileSex } from './UserProfile';
 
+export type { SessionSetRow } from './SessionSetRow';
+export { createEmptySessionSetRow, validateSessionSetRow } from './SessionSetRow';
+
 // TrainingSet (replaces BenchSet)
 export type { TrainingSet } from './TrainingSet';
 export { createTrainingSet, isTrainingSet } from './TrainingSet';
